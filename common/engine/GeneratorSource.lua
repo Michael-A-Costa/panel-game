@@ -75,7 +75,7 @@ function GeneratorSource:generateGarbagePanels(stack)
   local newPanels = ""
 
   for i = 1, 20 do
-    local newRow = self.garbagePanelGenerator:generatePanels(stack.width, stack.levelData.colors, lastRow)
+    local newRow = self.garbagePanelGenerator:generatePanels(stack.width, stack.levelData.colors, lastRow, stack.cylinder)
     newPanels = newPanels .. newRow
     lastRow = newRow
   end
@@ -113,6 +113,41 @@ local function convertMetalPanels(rowString, metalPanelCount)
   return colors
 end
 
+-- PPL puts the shock panels of a 3D row in view columns 1-5, in front of the player when the row enters
+-- (init3d.c:22: RandomBlock() without 2D's "- 1"). The cursor isn't known yet when a row is buffered, so the metal marks
+-- of a cylinder row name view columns instead of board columns: the mark at index i stands for view column i - 1.
+local CYLINDER_FIRST_SHOCK_INDEX = 2
+local CYLINDER_LAST_SHOCK_INDEX = 6
+
+-- convertMetalPanels for a cylinder row, whose metal marks are resolved against the cursor
+---@param rowString string
+---@param metalPanelCount integer
+---@param stack Stack
+---@return integer[] colorArray
+local function convertCylinderMetalPanels(rowString, metalPanelCount, stack)
+  local colors = table.new(rowString:len(), 0)
+  local upperMark, lowerMark
+
+  for i = 1, rowString:len() do
+    local colorString = rowString:sub(i, i)
+    colors[i] = PanelGenerator.PANEL_COLOR_TO_NUMBER[colorString]
+    if colorString >= "A" and colorString <= "Z" then
+      upperMark = i
+    elseif colorString >= "a" and colorString <= "z" then
+      lowerMark = i
+    end
+  end
+
+  if metalPanelCount > 0 and upperMark then
+    colors[stack:viewToBoardColumn(upperMark - 1)] = 8
+  end
+  if metalPanelCount > 1 and lowerMark then
+    colors[stack:viewToBoardColumn(lowerMark - 1)] = 8
+  end
+
+  return colors
+end
+
 local counts = {0, 0, 0, 0, 0, 0, 0, 0, 0}
 
 ---@param rowString string
@@ -143,11 +178,15 @@ function GeneratorSource:growPanelBuffer(stack)
   local newPanels
 
   while newPanels == nil or isBadRow(newPanels) do
-    newPanels = self.panelGenerator:generatePanels(stack.width, stack.levelData.colors, lastRow)
+    newPanels = self.panelGenerator:generatePanels(stack.width, stack.levelData.colors, lastRow, stack.cylinder)
   end
 
   if self.shockEnabled then
-    newPanels = self.panelGenerator:assignMetalLocations(newPanels, lastRow)
+    if stack.cylinder then
+      newPanels = self.panelGenerator:assignMetalLocations(newPanels, lastRow, CYLINDER_FIRST_SHOCK_INDEX, CYLINDER_LAST_SHOCK_INDEX)
+    else
+      newPanels = self.panelGenerator:assignMetalLocations(newPanels, lastRow)
+    end
   end
 
   self.panelBuffer = self.panelBuffer .. newPanels
@@ -173,7 +212,12 @@ function GeneratorSource:createNewRow(stack, row)
     end
   end
 
-  local colors = convertMetalPanels(self.panelBuffer:sub(1, stack.width), metalPanelsThisRow)
+  local colors
+  if stack.cylinder then
+    colors = convertCylinderMetalPanels(self.panelBuffer:sub(1, stack.width), metalPanelsThisRow, stack)
+  else
+    colors = convertMetalPanels(self.panelBuffer:sub(1, stack.width), metalPanelsThisRow)
+  end
   self.panelBuffer = self.panelBuffer:sub(stack.width + 1)
 
   for col = 1, stack.width do
