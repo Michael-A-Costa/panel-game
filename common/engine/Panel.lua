@@ -205,10 +205,13 @@ local function supportedFromBelow(panel, panels)
 
   if panel.isGarbage then
     -- check if it supported in any column over the entire width of the garbage
-    local startColumn = panel.column - panel.x_offset
-    local endColumn = panel.column - panel.x_offset + panel.width - 1
-    for column = startColumn, endColumn do
-      local panelBelow = panels[panel.row - 1][column]
+    local rowBelow = panels[panel.row - 1]
+    -- a block on a cylinder can wrap around the seam, so its columns are counted modulo the row width
+    -- a block on a flat stack never leaves the row and this is just its columns from left to right
+    local rowWidth = #rowBelow
+    local startColumn = panel.column - panel.x_offset - 1
+    for i = 0, panel.width - 1 do
+      local panelBelow = rowBelow[(startColumn + i) % rowWidth + 1]
       if panelBelow.color ~= 0 then
         if panelBelow.isGarbage == false then
           return true

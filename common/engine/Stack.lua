@@ -46,6 +46,12 @@ local GARBAGE_SIZE_TO_SHAKE_FRAMES = {
   66, 66, 66, 66, 66, 76
 }
 
+-- view columns (see viewToBoardColumn) where PPL starts the chain garbage it reshapes for the tower (attack3d.c)
+local CYLINDER_CHAIN_X2_VIEW_COLUMN = 2 -- 6 wide, the six front columns
+local CYLINDER_CHAIN_X3_VIEW_COLUMN = 17 -- 12 wide, wrapping round to view column 10
+local CYLINDER_FULL_RING_VIEW_COLUMN = 14
+local CYLINDER_MAX_FULL_RING_ROWS = 10
+
 local DT_SPEED_INCREASE = 15 * 60 -- frames it takes to increase the speed level by 1
 
 -- endless and 1P time attack use a speed system in which
@@ -1414,7 +1420,12 @@ function Stack:tryDropGarbage()
   local garbage = self.incomingGarbage:pop()
   logger.debug(string.format("%d Dropping garbage on stack %d - height %d  width %d  %s", self.stopWatch, self.which, garbage.height, garbage.width, garbage.isMetal and "Metal" or ""))
 
-  self:dropGarbage(garbage.width, garbage.height, garbage.isMetal)
+  if self.cylinder then
+    local width, height, originCol = self:getCylinderGarbagePlacement(garbage)
+    self:dropGarbage(width, height, garbage.isMetal, originCol)
+  else
+    self:dropGarbage(garbage.width, garbage.height, garbage.isMetal)
+  end
 
   return true
 end
@@ -1428,14 +1439,50 @@ function Stack:getGarbageSpawnColumn(garbageWidth)
   return spawnColumn
 end
 
-function Stack:dropGarbage(width, height, isMetal)
+-- The receiving tower decides the shape of incoming garbage, so senders queue the same 2D garbage as always. Placement
+-- is relative to the cursor at the moment the block enters the board, so it always drops in front of the player.
+---@param garbage Garbage
+---@return integer width
+---@return integer height
+---@return integer originCol board column of the block's left edge
+function Stack:getCylinderGarbagePlacement(garbage)
+  local width = garbage.width
+  local height = garbage.height
+  local viewColumn
+  if garbage.isChain and width == 6 then
+    -- a chain's links are its height in 2D; PPL widens x2 and x3 instead and only stacks rows from x4 on
+    if height == 1 then
+      viewColumn = CYLINDER_CHAIN_X2_VIEW_COLUMN
+    elseif height == 2 then
+      width = 12
+      height = 1
+      viewColumn = CYLINDER_CHAIN_X3_VIEW_COLUMN
+    else
+      width = self.width
+      height = math.min(height - 2, CYLINDER_MAX_FULL_RING_ROWS)
+      viewColumn = CYLINDER_FULL_RING_VIEW_COLUMN
+    end
+  elseif width <= 6 then
+    -- combos and shock garbage: PPL lays the 2D drop columns (and their rotation) over view columns 2-7
+    viewColumn = self:getGarbageSpawnColumn(width) + 1
+  else
+    -- only attack patterns send blocks wider than 6; centre them on the cursor like the 6 and 12 wide chains
+    width = math.min(width, self.width)
+    viewColumn = consts.CYLINDER_CURSOR_VIEW_COLUMN + 1 - math.floor(width / 2)
+  end
+
+  return width, height, self:viewToBoardColumn(viewColumn)
+end
+
+---@param width integer
+---@param height integer
+---@param isMetal boolean
+---@param originCol integer? the block's left edge; by default the next column of the 2D drop rotation for its width
+function Stack:dropGarbage(width, height, isMetal, originCol)
   -- garbage always drops in row 13
   local originRow = self.height + 1
   -- combo garbage will alternate it's spawn column
-  local originCol = self:getGarbageSpawnColumn(width)
-  local function isPartOfGarbage(column)
-    return column >= originCol and column < (originCol + width)
-  end
+  originCol = originCol or self:getGarbageSpawnColumn(width)
 
   self.garbageCreatedCount = self.garbageCreatedCount + 1
   local shakeTime = self:shakeFramesForGarbageSize(width, height)
@@ -1447,15 +1494,17 @@ function Stack:dropGarbage(width, height, isMetal)
       -- so iterate from 1 to stack width instead of column to column + width - 1
       for col = 1, self.width do
         local panel = self:createPanelAt(row, col)
+        -- counted modulo the width so that a block on a cylinder can wrap around the seam; flat stacks never wrap
+        local xOffset = (col - originCol) % self.width
 
-        if isPartOfGarbage(col) then
+        if xOffset < width then
           panel.garbageId = self.garbageCreatedCount
           panel.isGarbage = true
           panel.color = 9
           panel.width = width
           panel.height = height
           panel.y_offset = row - originRow
-          panel.x_offset = col - originCol
+          panel.x_offset = xOffset
           panel.shake_time = shakeTime
           panel.state = "falling"
           panel.row = row
