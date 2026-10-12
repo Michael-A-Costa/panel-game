@@ -76,6 +76,7 @@ local Player = require("client.src.Player")
 local IDLE = KeyDataEncoding.base64encode[1]
 local SWAP = KeyDataEncoding.base64encode[16 + 1]
 local LEFT = KeyDataEncoding.base64encode[2 + 1]
+local RIGHT = KeyDataEncoding.right
 
 function love.load()
   GAME = Game()
@@ -99,9 +100,10 @@ end
 ---@param gameModeId GameModeID
 ---@param playerCount integer
 ---@param sceneName string
+---@param withCountdown boolean? play the countdown (and the 3D tower's intro) instead of starting right away
 ---@return ClientMatch match
 ---@return GameBase scene
-local function createMatch(gameModeId, playerCount, sceneName)
+local function createMatch(gameModeId, playerCount, sceneName, withCountdown)
   local gameMode = GameModes.getPreset(gameModeId)
   local players = {}
   for i = 1, playerCount do
@@ -118,7 +120,7 @@ local function createMatch(gameModeId, playerCount, sceneName)
   end
 
   local match = ClientMatch.createFromGameMode(players, gameMode, GeneratorSource(4242, false), false)
-  match.engine:setCountdown(false)
+  match.engine:setCountdown(withCountdown == true)
   match:start()
   for _, stack in ipairs(match.stacks) do
     stack:setMaxRunsPerFrame(1)
@@ -411,6 +413,84 @@ local shots = {
       return scene
     end
   },
+  -- the live_ shots get everything from the engine's 3D rules and scripted inputs; nothing is placed by hand
+  -- beyond a starting board
+  {
+    -- PPL's countdown intro, 20 frames in: the tower rises into the tube from 6 rows low while it turns left
+    name = "live_3d_intro.png",
+    prepare = function()
+      local match, scene = createMatch(GameModes.IDs.ONE_PLAYER_ENDLESS_3D, 1, "EndlessGame", true)
+      runFrames(match, 20)
+      return scene
+    end
+  },
+  {
+    -- two frames after a Left press: the tower is half a column into its turn, the cursor stays in front
+    name = "live_3d_turning.png",
+    prepare = function()
+      local match, scene = createMatch(GameModes.IDs.ONE_PLAYER_ENDLESS_3D, 1, "EndlessGame")
+      runFrames(match, 30)
+      runFrames(match, 2, {{LEFT}})
+      return scene
+    end
+  },
+  {
+    -- with the cursor on columns 1 and 2, swapping them lines up columns 17, 18 and 1: a match across the seam
+    name = "live_3d_seam_match.png",
+    prepare = function()
+      local match, scene = createMatch(GameModes.IDs.ONE_PLAYER_ENDLESS_3D, 1, "EndlessGame")
+      runFrames(match, 30)
+      local engine = match.stacks[1].engine
+      fillBoard(engine, 6)
+      -- fillBoard's row 1 has 4 on column 16 and 1 on column 3, so 5s on 17, 18 and 2 only match once column 1 is a 5
+      engine.panels[1][17].color = 5
+      engine.panels[1][18].color = 5
+      engine.panels[1][1].color = 2
+      engine.panels[1][2].color = 5
+      engine.cur_row = 1
+      engine.cur_col = 1
+      runFrames(match, 12, {{SWAP}})
+      return scene
+    end
+  },
+  {
+    -- garbage of a x3 chain (12 wide) and a x4 chain (full ring) arriving on P1: both drop in front of the player
+    -- and wrap around the back of the tower
+    name = "live_3d_chain_garbage.png",
+    prepare = function()
+      local match, scene = createMatch(GameModes.IDs.TWO_PLAYER_VS_3D, 2, "GameBase")
+      runFrames(match, 30)
+      local engine = match.stacks[1].engine
+      fillBoard(engine, 4)
+      engine.incomingGarbage:push({width = 6, height = 2, isChain = true, isMetal = false, frameEarned = 0,
+                                   rowEarned = 1, colEarned = 1})
+      engine.incomingGarbage:push({width = 6, height = 3, isChain = true, isMetal = false, frameEarned = 0,
+                                   rowEarned = 1, colEarned = 1})
+      runFrames(match, 120)
+      return scene
+    end
+  },
+  {
+    -- the same garbage after P1 held Left for a while: landed garbage turns with the tower
+    name = "live_3d_chain_garbage_turned.png",
+    prepare = function()
+      local match, scene = createMatch(GameModes.IDs.TWO_PLAYER_VS_3D, 2, "GameBase")
+      runFrames(match, 30)
+      local engine = match.stacks[1].engine
+      fillBoard(engine, 4)
+      engine.incomingGarbage:push({width = 6, height = 2, isChain = true, isMetal = false, frameEarned = 0,
+                                   rowEarned = 1, colEarned = 1})
+      engine.incomingGarbage:push({width = 6, height = 3, isChain = true, isMetal = false, frameEarned = 0,
+                                   rowEarned = 1, colEarned = 1})
+      runFrames(match, 120)
+      local holdLeft = {}
+      for frame = 1, 34 do
+        holdLeft[frame] = LEFT
+      end
+      runFrames(match, 34, {holdLeft})
+      return scene
+    end
+  },
 }
 
 local canvas
@@ -455,16 +535,8 @@ if mode == "live" then
       liveMatch, liveScene = createMatch(GameModes.IDs.TWO_PLAYER_VS_3D, 2, "GameBase")
       liveStart = love.timer.getTime()
     end
-    -- keep both towers turning so every frame rebuilds rotated geometry
-    runFrames(liveMatch, 1)
-    local clock = liveMatch.stacks[1].engine.clock
-    for i, stack in ipairs(liveMatch.stacks) do
-      local step = clock % 8
-      setRotation(stack, step < 4 and 4 - step or 0, step < 4 and (i == 1 and 1 or -1) or 0)
-      if step == 4 then
-        stack.engine.cur_col = (stack.engine.cur_col + (i == 1 and 1 or -1) - 1) % stack.engine.width + 1
-      end
-    end
+    -- P1 holds Left and P2 holds Right so both towers keep turning and every frame rebuilds rotated geometry
+    runFrames(liveMatch, 1, {{LEFT}, {RIGHT}})
     if love.timer.getTime() - liveStart > LIVE_SECONDS then
       table.sort(frameTimes)
       print(string.format("live: %d frames in %.1f s, %.1f fps, median frame %.2f ms, slowest %.2f ms",

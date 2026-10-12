@@ -206,7 +206,10 @@ end
 function PlayerStack:onCursorMoved(previousRow, previousCol)
   local playMoveSounds = true -- set this to false to disable move sounds for debugging
   local engine = self.engine
-  if (playMoveSounds and (engine.cur_timer == 0 or engine.cur_timer == engine.cur_wait_time) and (engine.cur_row ~= previousRow or engine.cur_col ~= previousCol)) then
+  -- on the tower Left/Right start a rotation and cur_col only changes when it lands, so a fresh rotation counts as a move
+  local startedRotation = engine.cylinder and engine.rotationTimer == consts.CYLINDER_ROTATION_FRAMES
+  local moved = engine.cur_row ~= previousRow or engine.cur_col ~= previousCol or startedRotation
+  if (playMoveSounds and (engine.cur_timer == 0 or engine.cur_timer == engine.cur_wait_time) and moved) then
     if self:canPlaySfx() then
       self.sfxCursorMove = true
     end

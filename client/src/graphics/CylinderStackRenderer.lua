@@ -38,6 +38,7 @@ local INNER_FACING = INNER_RADIUS * cos(COLUMN_ANGLE / 2) / EYE_DISTANCE
 -- Panel Attack draws rows 16 units tall; scale PPL's projection so rows on the front of the tower keep that height
 -- and line up with the flat cursor, the HUD and the 2D row positions
 local PANEL_SIZE = 16
+local INTRO_ROWS = 6
 local UNITS_PER_NDC_Y = PANEL_SIZE * (EYE_DISTANCE - OUTER_RADIUS) / (ROW_HEIGHT * FOCAL)
 local MODEL_TO_UNITS_Y = UNITS_PER_NDC_Y * FOCAL
 -- PPL maps normalized device coordinates onto its 4:3 screen, stretching the tower to about 1.5 times the width of a
@@ -379,7 +380,22 @@ end
 function CylinderStackRenderer:eyeLevel()
   local stack = self.stack
   return stack.panelOriginYOffset + (stack.engine.height - 1) * PANEL_SIZE + ROW_ONE_BOTTOM * PANEL_SIZE / ROW_HEIGHT
-      + stack.engine.displacement
+      + stack.engine.displacement + self:introDrop()
+end
+
+-- PPL's 3D countdown raises the tower from INTRO_ROWS rows low into place over its first frames (DoCountDown.s);
+-- the engine keeps the board where it is, so the rise is drawn here from the countdown clock
+---@return number
+function CylinderStackRenderer:introDrop()
+  local countdownTimer = self.stack.engine.countdown_timer
+  if not countdownTimer then
+    return 0
+  end
+  local countdownFrame = consts.COUNTDOWN_LENGTH - countdownTimer
+  if countdownFrame >= consts.CYLINDER_INTRO_FRAMES then
+    return 0
+  end
+  return (consts.CYLINDER_INTRO_FRAMES - countdownFrame) / consts.CYLINDER_INTRO_FRAMES * INTRO_ROWS * PANEL_SIZE
 end
 
 ---@param texture love.Texture
