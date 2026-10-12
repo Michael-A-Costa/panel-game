@@ -471,6 +471,17 @@ local shots = {
     end
   },
   {
+    -- 1P vs yourself on the tower: a 5 combo sends its garbage to the same stack, where it drops in front
+    name = "live_3d_vs_self_garbage.png",
+    prepare = function()
+      local match, scene = createMatch(GameModes.IDs.ONE_PLAYER_VS_SELF_3D, 1, "VsSelfGame")
+      runFrames(match, 30)
+      setUpCombo(match.stacks[1].engine)
+      runFrames(match, 240, {{SWAP}})
+      return scene
+    end
+  },
+  {
     -- the same garbage after P1 held Left for a while: landed garbage turns with the tower
     name = "live_3d_chain_garbage_turned.png",
     prepare = function()

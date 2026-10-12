@@ -87,8 +87,17 @@ function MainMenu:createMainMenu()
         switchToScene(CharacterSelectVsSelf({battleRoom = GAME.battleRoom}))
       end
     end),
+    ui.MenuItem.createButtonMenuItem("mm_1_vs_3d", nil, nil, function()
+      GAME.battleRoom = BattleRoom.createLocalFromGameMode(GameModes.getPreset(GameModes.IDs.ONE_PLAYER_VS_SELF_3D), VsSelfGame)
+      if GAME.battleRoom then
+        switchToScene(CharacterSelectVsSelf({battleRoom = GAME.battleRoom}))
+      end
+    end),
     ui.MenuItem.createButtonMenuItem("mm_1_training", nil, nil, function()
       switchToScene(TrainingMenu())
+    end),
+    ui.MenuItem.createButtonMenuItem("mm_1_training_3d", nil, nil, function()
+      switchToScene(TrainingMenu({gameModeId = GameModes.IDs.ONE_PLAYER_TRAINING_3D}))
     end),
     ui.MenuItem.createButtonMenuItem("mm_1_challenge_mode", nil, nil, function()
       switchToScene(ChallengeModeMenu())

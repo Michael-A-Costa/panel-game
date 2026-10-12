@@ -223,6 +223,8 @@ end
 local OnePlayerEndless3D = cylinderVariant(OnePlayerEndless, "endless3d", "Endless 3D")
 local OnePlayerTimeAttack3D = cylinderVariant(OnePlayerTimeAttack, "timeattack3d", "Time Attack 3D")
 local TwoPlayerVersus3D = cylinderVariant(TwoPlayerVersus, "VS3d", "2p versus 3D")
+local OnePlayerVsSelf3D = cylinderVariant(OnePlayerVsSelf, "vsSelf3d", "1p vs self 3D")
+local OnePlayerTraining3D = cylinderVariant(OnePlayerTraining, "training3d", "Training 3D")
 
 GameModes.Styles = Styles
 GameModes.StackInteractions = StackInteractions
@@ -240,6 +242,8 @@ GameModes.IDs = {
   ONE_PLAYER_ENDLESS_3D = "ONE_PLAYER_ENDLESS_3D",
   ONE_PLAYER_TIME_ATTACK_3D = "ONE_PLAYER_TIME_ATTACK_3D",
   TWO_PLAYER_VS_3D = "TWO_PLAYER_VS_3D",
+  ONE_PLAYER_VS_SELF_3D = "ONE_PLAYER_VS_SELF_3D",
+  ONE_PLAYER_TRAINING_3D = "ONE_PLAYER_TRAINING_3D",
 }
 
 ---@type table<GameModeID, GameMode>
@@ -255,6 +259,8 @@ privateGameModes[GameModes.IDs.TWO_PLAYER_TIME_ATTACK] = TwoPlayerTimeAttack
 privateGameModes[GameModes.IDs.ONE_PLAYER_ENDLESS_3D] = OnePlayerEndless3D
 privateGameModes[GameModes.IDs.ONE_PLAYER_TIME_ATTACK_3D] = OnePlayerTimeAttack3D
 privateGameModes[GameModes.IDs.TWO_PLAYER_VS_3D] = TwoPlayerVersus3D
+privateGameModes[GameModes.IDs.ONE_PLAYER_VS_SELF_3D] = OnePlayerVsSelf3D
+privateGameModes[GameModes.IDs.ONE_PLAYER_TRAINING_3D] = OnePlayerTraining3D
 
 ---@param mode GameModeID
 ---@return GameMode
@@ -299,6 +305,8 @@ GameModes.gameModeIdToName = {
   ONE_PLAYER_ENDLESS_3D = "endless3d",
   ONE_PLAYER_TIME_ATTACK_3D = "timeattack3d",
   TWO_PLAYER_VS_3D = "VS3d",
+  ONE_PLAYER_VS_SELF_3D = "vsSelf3d",
+  ONE_PLAYER_TRAINING_3D = "training3d",
 }
 
 ---@type table<string, GameModeID>
@@ -314,6 +322,8 @@ GameModes.nameToGameModeId = {
   endless3d = "ONE_PLAYER_ENDLESS_3D",
   timeattack3d = "ONE_PLAYER_TIME_ATTACK_3D",
   VS3d = "TWO_PLAYER_VS_3D",
+  vsSelf3d = "ONE_PLAYER_VS_SELF_3D",
+  training3d = "ONE_PLAYER_TRAINING_3D",
 }
 
 return GameModes
