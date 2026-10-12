@@ -74,6 +74,10 @@ function TouchInputDetector:encodedCharacterForCurrentTouchInput()
 end
 
 function TouchInputDetector:isMouseOverStack(mouseX, mouseY)
+  -- the cells of a cylinder's tower aren't where the flat well would be
+  if self.stack.engine.cylinder then
+    return false
+  end
   return
     mouseX >= self.stack.panelOriginX * self.stack.gfxScale and mouseX <= (self.stack.panelOriginX + (self.width * 16)) * self.stack.gfxScale and
     mouseY >= self.stack.panelOriginY * self.stack.gfxScale and mouseY <= (self.stack.panelOriginY + (self.height* 16)) * self.stack.gfxScale

@@ -11,6 +11,7 @@ local tableUtils = require("common.lib.tableUtils")
 local GameModes = require("common.data.GameModes")
 local TouchInputController = require("client.src.TouchInputController")
 local TouchInputDetector = require("client.src.TouchInputDetector")
+local CylinderStackRenderer = require("client.src.graphics.CylinderStackRenderer")
 local logger = require("common.lib.logger")
 require("client.src.analytics")
 local KeyDataEncoding = require("common.data.KeyDataEncoding")
@@ -30,6 +31,7 @@ local floor, min, max = math.floor, math.min, math.max
 ---@field danger_col boolean[] Tracks for each column if it is considered in danger for the danger animation. Danger means high rows being filled in that column.
 ---@field analytic table
 ---@field player Player
+---@field cylinderRenderer CylinderStackRenderer? draws the stack as a 3D tower if the engine stack is a cylinder
 
 -- A client side stack that wraps an engine Stack
 -- engine functionality is masked by wrapping the relevant functions and fields Match interfaces with
@@ -80,6 +82,10 @@ function(self, args)
 
   self.danger_col = {false, false, false, false, false, false}
   self.danger_timer = 0
+
+  if self.engine.cylinder then
+    self.cylinderRenderer = CylinderStackRenderer(self)
+  end
 
   self.multiBarFrameCount = self:calculateMultibarFrameCount()
 
@@ -495,6 +501,10 @@ function PlayerStack.drawCards(self)
     if CARD_ANIMATION[card.frame] then
       local draw_x = (self.panelOriginX) + (card.x - 1) * 16
       local draw_y = (self.panelOriginY) + (11 - card.y) * 16 + self.engine.displacement - CARD_ANIMATION[card.frame]
+      if self.cylinderRenderer then
+        draw_x, draw_y = self.cylinderRenderer:cardOrigin(card.x, card.y)
+        draw_y = draw_y - CARD_ANIMATION[card.frame]
+      end
       -- Draw burst around card
       if card.burstAtlas and card.frame then
         GraphicsUtil.setColor(1, 1, 1, self:opacityForFrame(card.frame, 1, 22))
@@ -614,6 +624,13 @@ function PlayerStack.drawPopEffects(self)
     local popfx = self.pop_q[i]
     local drawX = (self.panelOriginX) + (popfx.x - 1) * panelSize
     local drawY = (self.panelOriginY) + (self.engine.height - 1 - popfx.y) * panelSize + self.engine.displacement
+    if self.cylinderRenderer then
+      drawX, drawY = self.cylinderRenderer:popEffectOrigin(popfx.x, popfx.y)
+      if not drawX then
+        -- explosions only show on the front of the tower
+        goto continue
+      end
+    end
 
     GraphicsUtil.setColor(1, 1, 1, self:opacityForFrame(popfx.frame, 1, 8))
 
@@ -641,6 +658,7 @@ function PlayerStack.drawPopEffects(self)
     end
 
     GraphicsUtil.setColor(1, 1, 1, 1)
+    ::continue::
   end
 end
 
@@ -865,7 +883,8 @@ function PlayerStack:drawDebug()
 end
 
 function PlayerStack:drawDebugPanels(shakeOffset)
-  if not DebugSettings.showStackDebugInfo() then
+  -- the hover details map the mouse onto the flat well
+  if not DebugSettings.showStackDebugInfo() or self.cylinderRenderer then
     return
   end
 
@@ -920,8 +939,6 @@ function PlayerStack:render(matchEnded, xOffset, yOffset)
     return
   end
 
-  self:setDrawArea(xOffset, yOffset)
-  self:drawCharacter()
   local garbageCharacter
   local metalPanelSet
 
@@ -935,9 +952,20 @@ function PlayerStack:render(matchEnded, xOffset, yOffset)
 
   local shakeOffset = self:currentShakeOffset() / self.gfxScale
 
-  self:drawPanels(garbageCharacter, metalPanelSet, shakeOffset)
-  self:drawFrame()
-  self:drawWall(shakeOffset, self.engine.height)
+  if self.cylinderRenderer then
+    local renderer = self.cylinderRenderer
+    renderer:setDrawArea(xOffset, yOffset)
+    renderer:drawTubeBack()
+    self:drawCharacter()
+    renderer:drawTower(garbageCharacter, metalPanelSet, shakeOffset)
+    renderer:drawTubeFront()
+  else
+    self:setDrawArea(xOffset, yOffset)
+    self:drawCharacter()
+    self:drawPanels(garbageCharacter, metalPanelSet, shakeOffset)
+    self:drawFrame()
+    self:drawWall(shakeOffset, self.engine.height)
+  end
   self:render_cursor(shakeOffset, matchEnded)
   self:drawCountdown()
   self:resetDrawArea()
@@ -984,9 +1012,12 @@ function PlayerStack:render_cursor(shake, matchEnded)
   local cursor = self.theme.images.cursor[(floor(self.engine.clock / 16) % 2) + 1]
   local desiredCursorWidth = 40
   local panelWidth = 16
+  local xPosition = (engine.cur_col - 1) * panelWidth
+  if self.cylinderRenderer then
+    xPosition, desiredCursorWidth = self.cylinderRenderer:getCursorPlacement()
+  end
   local scale_x = desiredCursorWidth / cursor.image:getWidth()
   local scale_y = 24 / cursor.image:getHeight()
-  local xPosition = (engine.cur_col - 1) * panelWidth
 
   if self:game_ended() or matchEnded then
     GraphicsUtil.setColor(1, 1, 1, 0.3)

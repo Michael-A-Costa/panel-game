@@ -107,6 +107,9 @@ function Telegraph:renderAttack(sender, receiver, frameEarned, telegraphIndex, r
 
   local attackX = (colOrigin - 1) * 16 + sender.panelOriginX
   local attackY = (11 - rowOrigin) * 16 + sender.panelOriginY + (sender.displacement or 0)
+  if sender.cylinderRenderer then
+    attackX, attackY = sender.cylinderRenderer:cardOrigin(colOrigin, rowOrigin)
+  end
   -- -1 for left, 1 for right
   local horizontalDirection = math.sign(destinationX - attackX)
 
