@@ -1,3 +1,4 @@
+require("common.lib.util")
 local class = require("common.lib.class")
 local MatchRules = require("common.data.MatchRules")
 local TIME_ATTACK_TIME = 120
@@ -206,6 +207,23 @@ local TwoPlayerTimeAttack = GameMode({
 
 })
 
+-- the 3D modes play their 2D counterparts on a cylinder
+---@param gameMode GameMode
+---@param name string
+---@param richPresenceLabel string
+---@return GameMode
+local function cylinderVariant(gameMode, name, richPresenceLabel)
+  local variant = deepcpy(gameMode)
+  variant.name = name
+  variant.richPresenceLabel = richPresenceLabel
+  variant.matchRules.stackSetupModifications.cylinder = true
+  return variant
+end
+
+local OnePlayerEndless3D = cylinderVariant(OnePlayerEndless, "endless3d", "Endless 3D")
+local OnePlayerTimeAttack3D = cylinderVariant(OnePlayerTimeAttack, "timeattack3d", "Time Attack 3D")
+local TwoPlayerVersus3D = cylinderVariant(TwoPlayerVersus, "VS3d", "2p versus 3D")
+
 GameModes.Styles = Styles
 GameModes.StackInteractions = StackInteractions
 
@@ -219,6 +237,9 @@ GameModes.IDs = {
   ONE_PLAYER_VS_SELF = "ONE_PLAYER_VS_SELF",
   ONE_PLAYER_PUZZLE = "ONE_PLAYER_PUZZLE",
   TWO_PLAYER_TIME_ATTACK = "TWO_PLAYER_TIME_ATTACK",
+  ONE_PLAYER_ENDLESS_3D = "ONE_PLAYER_ENDLESS_3D",
+  ONE_PLAYER_TIME_ATTACK_3D = "ONE_PLAYER_TIME_ATTACK_3D",
+  TWO_PLAYER_VS_3D = "TWO_PLAYER_VS_3D",
 }
 
 ---@type table<GameModeID, GameMode>
@@ -231,6 +252,9 @@ privateGameModes[GameModes.IDs.ONE_PLAYER_PUZZLE] = OnePlayerPuzzle
 privateGameModes[GameModes.IDs.ONE_PLAYER_CHALLENGE] = OnePlayerChallenge
 privateGameModes[GameModes.IDs.TWO_PLAYER_VS] = TwoPlayerVersus
 privateGameModes[GameModes.IDs.TWO_PLAYER_TIME_ATTACK] = TwoPlayerTimeAttack
+privateGameModes[GameModes.IDs.ONE_PLAYER_ENDLESS_3D] = OnePlayerEndless3D
+privateGameModes[GameModes.IDs.ONE_PLAYER_TIME_ATTACK_3D] = OnePlayerTimeAttack3D
+privateGameModes[GameModes.IDs.TWO_PLAYER_VS_3D] = TwoPlayerVersus3D
 
 ---@param mode GameModeID
 ---@return GameMode
@@ -272,6 +296,9 @@ GameModes.gameModeIdToName = {
   ONE_PLAYER_VS_SELF = "vsSelf",
   ONE_PLAYER_PUZZLE = "puzzle",
   TWO_PLAYER_TIME_ATTACK = "2p_timeattack",
+  ONE_PLAYER_ENDLESS_3D = "endless3d",
+  ONE_PLAYER_TIME_ATTACK_3D = "timeattack3d",
+  TWO_PLAYER_VS_3D = "VS3d",
 }
 
 ---@type table<string, GameModeID>
@@ -283,7 +310,10 @@ GameModes.nameToGameModeId = {
   challenge = "ONE_PLAYER_CHALLENGE",
   vsSelf = "ONE_PLAYER_VS_SELF",
   puzzle = "ONE_PLAYER_PUZZLE",
-  ["2p_timeattack"] = "TWO_PLAYER_TIME_ATTACK"
+  ["2p_timeattack"] = "TWO_PLAYER_TIME_ATTACK",
+  endless3d = "ONE_PLAYER_ENDLESS_3D",
+  timeattack3d = "ONE_PLAYER_TIME_ATTACK_3D",
+  VS3d = "TWO_PLAYER_VS_3D",
 }
 
 return GameModes

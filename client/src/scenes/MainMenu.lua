@@ -57,6 +57,12 @@ function MainMenu:createMainMenu()
         switchToScene(EndlessMenu({battleRoom = GAME.battleRoom}))
       end
     end),
+    ui.MenuItem.createButtonMenuItem("mm_1_endless_3d", nil, nil, function()
+      GAME.battleRoom = BattleRoom.createLocalFromGameMode(GameModes.getPreset(GameModes.IDs.ONE_PLAYER_ENDLESS_3D), EndlessGame)
+      if GAME.battleRoom then
+        switchToScene(EndlessMenu({battleRoom = GAME.battleRoom}))
+      end
+    end),
     ui.MenuItem.createButtonMenuItem("mm_1_puzzle", nil, nil, function()
       GAME.battleRoom = BattleRoom.createLocalFromGameMode(GameModes.getPreset(GameModes.IDs.ONE_PLAYER_PUZZLE), PuzzleGame)
       if GAME.battleRoom then
@@ -65,6 +71,12 @@ function MainMenu:createMainMenu()
     end),
     ui.MenuItem.createButtonMenuItem("mm_1_time", nil, nil, function()
       GAME.battleRoom = BattleRoom.createLocalFromGameMode(GameModes.getPreset(GameModes.IDs.ONE_PLAYER_TIME_ATTACK), TimeAttackGame)
+      if GAME.battleRoom then
+        switchToScene(TimeAttackMenu({battleRoom = GAME.battleRoom}))
+      end
+    end),
+    ui.MenuItem.createButtonMenuItem("mm_1_time_3d", nil, nil, function()
+      GAME.battleRoom = BattleRoom.createLocalFromGameMode(GameModes.getPreset(GameModes.IDs.ONE_PLAYER_TIME_ATTACK_3D), TimeAttackGame)
       if GAME.battleRoom then
         switchToScene(TimeAttackMenu({battleRoom = GAME.battleRoom}))
       end
