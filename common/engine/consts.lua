@@ -33,6 +33,10 @@ consts.ENGINE_VERSIONS.WIGGLE_PUNISH = "049"
 
 consts.ENGINE_VERSION = consts.ENGINE_VERSIONS.WIGGLE_PUNISH -- The current engine version
 consts.VERSION_MIN_VIEW = consts.ENGINE_VERSIONS.LEVELDATA -- The lowest version number that can be watched
+-- Matches on the 3D cylinder record this instead of ENGINE_VERSION so that clients without it refuse their replays rather
+-- than play them 6 wide: it sorts after every numeric version ("3" > "0"), which is what replayCanBeViewed compares.
+-- 2D matches keep ENGINE_VERSION.
+consts.ENGINE_VERSIONS.CYLINDER = "3d-049"
 
 consts.COUNTDOWN_CURSOR_SPEED = 4 --one move every this many frames
 consts.COUNTDOWN_START = 8

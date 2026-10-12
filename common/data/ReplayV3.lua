@@ -257,7 +257,10 @@ function ReplayV3.replayCanBeViewed(replay)
   if DEBUG_ENABLED then
     return true
   end
-  if replay.engineVersion > consts.ENGINE_VERSION then
+  if replay.engineVersion == consts.ENGINE_VERSIONS.CYLINDER then
+    -- 3D replays carry their own version so that clients without the cylinder refuse them (see consts)
+    return true
+  elseif replay.engineVersion > consts.ENGINE_VERSION then
     -- replay is from a newer game version, we can't watch
     -- or maybe we can but there is no way to verify we can
     return false
