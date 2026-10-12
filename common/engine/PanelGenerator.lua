@@ -47,12 +47,36 @@ function PanelGenerator:setState(state)
   self.rng:setState(state)
 end
 
+-- decides on a roll that repeats the color of a horizontal neighbour, following the adjacent denial frequency
+---@return boolean nogood if the color has to be rerolled
+function PanelGenerator:denyAdjacentColor()
+  if self.adjacentDenialFrequency >= 1 then
+    -- denying everything, no need to track numbers
+    return true
+  elseif self.adjacentDenialFrequency == 0 then
+    return false
+  else
+    -- a bit jank; frequency evaluates to NaN on the very first call of this function
+    local frequency = self.adjacentDenied / (self.adjacentAccepted + self.adjacentDenied)
+    -- NaN evaluates to false with all operators except ~= (which evaluates to true, even with itself (IEEE 754 standard lua follows))
+    if frequency <= self.adjacentDenialFrequency then
+      self.adjacentDenied = self.adjacentDenied + 1
+      return true
+    else
+      -- that means the first double is always accepted as NaN <= adjacentDenialFrequency evaluates to false
+      self.adjacentAccepted = self.adjacentAccepted + 1
+      return false
+    end
+  end
+end
+
 -- generates panels for one row based on previousPanels
 ---@param rowWidth integer
 ---@param ncolors integer
 ---@param previousRow string
+---@param isRing boolean? if the row is a cylinder's: its last panel also neighbours its first one (PPL init3d.c:89)
 ---@return string newPanels
-function PanelGenerator:generatePanels(rowWidth, ncolors, previousRow)
+function PanelGenerator:generatePanels(rowWidth, ncolors, previousRow, isRing)
   -- logger.info("generating panels with seed: " .. PanelGenerator.rng:getSeed() ..
   --              "\nbuffer: " .. previousPanels ..
   --              "\ncolors: " .. ncolors)
@@ -70,6 +94,13 @@ function PanelGenerator:generatePanels(rowWidth, ncolors, previousRow)
   for n = 1, rowWidth do
     local previousTwoMatchOnThisRow = n > 2 and PanelGenerator.PANEL_COLOR_TO_NUMBER[string.sub(newPanels, -1, -1)] ==
                                           PanelGenerator.PANEL_COLOR_TO_NUMBER[string.sub(newPanels, -2, -2)]
+    -- the seam pair follows the same rules as every other pair of neighbours
+    local closesRing = isRing and n == rowWidth and n > 2
+    local firstColor, firstTwoMatch
+    if closesRing then
+      firstColor = PanelGenerator.PANEL_COLOR_TO_NUMBER[string.sub(newPanels, 1, 1)]
+      firstTwoMatch = firstColor == PanelGenerator.PANEL_COLOR_TO_NUMBER[string.sub(newPanels, 2, 2)]
+    end
     local nogood = true
     local color = 0
     local belowColor = PanelGenerator.PANEL_COLOR_TO_NUMBER[string.sub(previousRow, n, n)]
@@ -82,26 +113,15 @@ function PanelGenerator:generatePanels(rowWidth, ncolors, previousRow)
       elseif (previousTwoMatchOnThisRow and color == PanelGenerator.PANEL_COLOR_TO_NUMBER[string.sub(newPanels, -1, -1)]) then
         -- can't have three in a row
         nogood = true
+      elseif closesRing and color == firstColor
+        and (firstTwoMatch or color == PanelGenerator.PANEL_COLOR_TO_NUMBER[string.sub(newPanels, -1, -1)]) then
+        -- can't have three in a row across the seam either
+        nogood = true
       elseif (n > 1 and color == PanelGenerator.PANEL_COLOR_TO_NUMBER[string.sub(newPanels, -1, -1)]) then
         -- only allow horizontally adjacent colors with a certain frequency
-        if self.adjacentDenialFrequency >= 1 then
-          -- denying everything, no need to track numbers
-          nogood = true
-        elseif self.adjacentDenialFrequency == 0 then
-          nogood = false
-        else
-          -- a bit jank; frequency evaluates to NaN on the very first call of this function
-          local frequency = self.adjacentDenied / (self.adjacentAccepted + self.adjacentDenied)
-          -- NaN evaluates to false with all operators except ~= (which evaluates to true, even with itself (IEEE 754 standard lua follows))
-          if frequency <= self.adjacentDenialFrequency then
-            self.adjacentDenied = self.adjacentDenied + 1
-            nogood = true
-          else
-            -- that means the first double is always accepted as NaN <= adjacentDenialFrequency evaluates to false
-            self.adjacentAccepted = self.adjacentAccepted + 1
-            nogood = false
-          end
-        end
+        nogood = self:denyAdjacentColor()
+      elseif closesRing and color == firstColor then
+        nogood = self:denyAdjacentColor()
       else
         nogood = false
       end
@@ -115,12 +135,16 @@ end
 
 ---@param rowString string
 ---@param previousRowString string?
+---@param firstCandidate integer? the first index that may be marked, 1 by default
+---@param lastCandidate integer? the last index that may be marked, the row's width by default
 ---@return string rowString
-function PanelGenerator:assignMetalLocations(rowString, previousRowString)
+function PanelGenerator:assignMetalLocations(rowString, previousRowString, firstCandidate, lastCandidate)
   local rowWidth = rowString:len()
   if not previousRowString or previousRowString == "" then
     previousRowString = string.rep("0", rowWidth)
   end
+  firstCandidate = firstCandidate or 1
+  lastCandidate = lastCandidate or rowWidth
 
   local newString = ""
 
@@ -129,10 +153,10 @@ function PanelGenerator:assignMetalLocations(rowString, previousRowString)
   -- just like other panels, we don't want metal panels ghost matching on their own
   -- so reroll until the same position of the previous row is not marked for metal
   while not first or not tonumber(string.sub(previousRowString, first, first)) do
-    first = self:random(1, rowWidth)
+    first = self:random(firstCandidate, lastCandidate)
   end
   while not second or second == first or not tonumber(string.sub(previousRowString, second, second)) do
-    second = self:random(1, rowWidth)
+    second = self:random(firstCandidate, lastCandidate)
   end
 
   for j = 1, rowWidth do

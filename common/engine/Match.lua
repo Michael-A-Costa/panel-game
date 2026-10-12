@@ -55,6 +55,10 @@ function(self, panelSource, matchRules)
   self.panelSource = panelSource
   self.rules = matchRules
   self.doCountdown = self.rules.doCountdown
+  -- the cylinder flag is a match rule, so every stack of a match is 3D or none is
+  if self.rules.stackSetupModifications and self.rules.stackSetupModifications.cylinder then
+    self.engineVersion = consts.ENGINE_VERSIONS.CYLINDER
+  end
 
   if self.rules.matchEndConditions[MatchRules.MatchEndConditions.TIME_LIMIT] then
     self.timeLimit = self.rules.matchEndConditions[MatchRules.MatchEndConditions.TIME_LIMIT]

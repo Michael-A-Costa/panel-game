@@ -205,10 +205,13 @@ local function supportedFromBelow(panel, panels)
 
   if panel.isGarbage then
     -- check if it supported in any column over the entire width of the garbage
-    local startColumn = panel.column - panel.x_offset
-    local endColumn = panel.column - panel.x_offset + panel.width - 1
-    for column = startColumn, endColumn do
-      local panelBelow = panels[panel.row - 1][column]
+    local rowBelow = panels[panel.row - 1]
+    -- a block on a cylinder can wrap around the seam, so its columns are counted modulo the row width
+    -- a block on a flat stack never leaves the row and this is just its columns from left to right
+    local rowWidth = #rowBelow
+    local startColumn = panel.column - panel.x_offset - 1
+    for i = 0, panel.width - 1 do
+      local panelBelow = rowBelow[(startColumn + i) % rowWidth + 1]
       if panelBelow.color ~= 0 then
         if panelBelow.isGarbage == false then
           return true
@@ -803,7 +806,8 @@ end
 ---@param panel1 Panel
 ---@param panel2 Panel
 ---@param panels Panel[][]
-function Panel.switch(panel1, panel2, panels)
+---@param ringWidth integer? the stack's width if it is a cylinder, where the first and last column are adjacent too
+function Panel.switch(panel1, panel2, panels, ringWidth)
   -- confirm the panel positions are up to date
   assert(panel1.id == panels[panel1.row][panel1.column].id)
   assert(panel2.id == panels[panel2.row][panel2.column].id)
@@ -811,7 +815,7 @@ function Panel.switch(panel1, panel2, panels)
   -- confirm the panels are directly adjacent to each other
   local rowDiff = panel1.row - panel2.row
   local colDiff = panel1.column - panel2.column
-  assert(math.abs(rowDiff + colDiff) == 1)
+  assert(math.abs(rowDiff + colDiff) == 1 or (ringWidth and rowDiff == 0 and math.abs(colDiff) == ringWidth - 1))
 
   local p1row = panel1.row
   local p1col = panel1.column

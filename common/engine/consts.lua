@@ -33,6 +33,10 @@ consts.ENGINE_VERSIONS.WIGGLE_PUNISH = "049"
 
 consts.ENGINE_VERSION = consts.ENGINE_VERSIONS.WIGGLE_PUNISH -- The current engine version
 consts.VERSION_MIN_VIEW = consts.ENGINE_VERSIONS.LEVELDATA -- The lowest version number that can be watched
+-- Matches on the 3D cylinder record this instead of ENGINE_VERSION so that clients without it refuse their replays rather
+-- than play them 6 wide: it sorts after every numeric version ("3" > "0"), which is what replayCanBeViewed compares.
+-- 2D matches keep ENGINE_VERSION.
+consts.ENGINE_VERSIONS.CYLINDER = "3d-049"
 
 consts.COUNTDOWN_CURSOR_SPEED = 4 --one move every this many frames
 consts.COUNTDOWN_START = 8
@@ -77,5 +81,11 @@ consts.ATTACK_TYPE = { combo=0, chain=1, shock=2 }
 -- Pokémon Puzzle League's 3D tower (docs/3d-mode/SPEC.md §1-2)
 consts.CYLINDER_WIDTH = 18
 consts.CYLINDER_ROTATION_FRAMES = 4 -- frames to turn the tower by one column
+-- 0-based view column of the cursor's left panel; view columns count around the tower from its left silhouette (0),
+-- so 1-8 face the player
+consts.CYLINDER_CURSOR_VIEW_COLUMN = 4
+-- countdown frames of PPL's 3D intro, in which the tower rises from 6 rows low and turns left a column at a time
+-- (DoCountDown.s: translation starts at -0.768 and gains 0.016 per frame)
+consts.CYLINDER_INTRO_FRAMES = 48
 
 return consts
