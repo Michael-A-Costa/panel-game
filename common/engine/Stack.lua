@@ -136,7 +136,8 @@ local DIRECTION_ROW = {up = 1, down = -1, left = 0, right = 0}
 ---@field cur_timer integer number of ticks the current movement key has been held
 ---@field cursorDirection CursorDirection? direction of the current movement key
 ---@field cur_row integer row the cursor is on
----@field cur_col integer the column the left half of the cursor is on (or just the cursor in case of touch)
+---@field cur_col integer the column the left half of the cursor is on (or just the cursor in case of touch) \n
+--- on a cylinder the right half is on cur_col % width + 1, so the cursor can straddle the seam between the last and first column
 ---@field cylinder boolean if the stack is Pokémon Puzzle League's 3D tower: a ring of consts.CYLINDER_WIDTH columns that wraps around
 ---@field rotationTimer integer cylinder only: frames left in the running one-column rotation of the tower; 0 when not rotating
 ---@field rotationDirection integer cylinder only: -1 or 1, the change to cur_col once the running rotation completes; 0 when not rotating
@@ -599,7 +600,8 @@ function Stack:controls()
   if self.inputMethod == "touch" then
     local cursorColumn, cursorRow
     raise, cursorRow, cursorColumn = TouchDataEncoding.latinStringToTouchData(sdata, self.width)
-    local canSetCursor = true
+    -- touching a panel can't turn a 3D tower, so a cylinder only takes the raise from touch input
+    local canSetCursor = not self.cylinder
     if self.do_countdown then
       if self.animatingCursorDuringCountdown then
         canSetCursor = false
@@ -753,8 +755,12 @@ function Stack:run()
   -- Queue Swapping
   -- Note: Swapping is queued in Stack.controls for touch mode
   if self.inputMethod == "controller" and self.swapThisFrame then
+    if self.rotationTimer > 0 then
+      -- PPL swaps the pair the tower is turning to, so the turn snaps to its end first (SPEC §2)
+      self:finishRotation()
+    end
     local leftPanel = self.panels[self.cur_row][self.cur_col]
-    local rightPanel = self.panels[self.cur_row][self.cur_col + 1]
+    local rightPanel = self.panels[self.cur_row][self:columnRightOf(self.cur_col)]
     self:tryQueueSwap(leftPanel, rightPanel)
   end
   --prof.pop("new swap")
@@ -1024,6 +1030,10 @@ function Stack:applyCursorDirection(direction)
     end
   end
 
+  if self.cylinder then
+    self:advanceRotation()
+  end
+
   if self.cur_timer ~= self.cur_wait_time then
     self.cur_timer = self.cur_timer + 1
   end
@@ -1033,7 +1043,81 @@ end
 ---@param direction CursorDirection
 function Stack:moveCursorInDirection(direction)
   self.cur_row = util.bound(1, self.cur_row + DIRECTION_ROW[direction], self.top_cur_row)
-  self.cur_col = util.bound(1, self.cur_col + DIRECTION_COLUMN[direction], self.width - 1)
+  if self.cylinder then
+    -- the cursor stays in front of the player and the tower turns under it instead
+    if DIRECTION_COLUMN[direction] ~= 0 then
+      self:startRotation(DIRECTION_COLUMN[direction])
+    end
+  else
+    self.cur_col = util.bound(1, self.cur_col + DIRECTION_COLUMN[direction], self.width - 1)
+  end
+end
+
+-- Starts turning the tower by one column. Like PPL, a press while a step is still running is dropped (SPEC §2).
+---@param direction integer -1 to move cur_col left, 1 to move it right
+function Stack:startRotation(direction)
+  if self.rotationTimer == 0 then
+    self.rotationDirection = direction
+    self.rotationTimer = consts.CYLINDER_ROTATION_FRAMES
+  end
+end
+
+-- Counts the running rotation step down; runs after the frame's input so a step shows 1/4, 2/4, 3/4 of the turn
+-- on the frames it is running and lands on the new column on its 4th frame.
+function Stack:advanceRotation()
+  if self.rotationTimer > 0 then
+    self.rotationTimer = self.rotationTimer - 1
+    if self.rotationTimer == 0 then
+      self:finishRotation()
+    end
+  end
+end
+
+-- Completes the running rotation step at once.
+function Stack:finishRotation()
+  self.cur_col = self:wrapColumn(self.cur_col + self.rotationDirection)
+  self.rotationTimer = 0
+  self.rotationDirection = 0
+end
+
+-- Maps any column offset back onto the board; only cylinders wrap.
+---@param column integer
+---@return integer
+function Stack:wrapColumn(column)
+  return (column - 1) % self.width + 1
+end
+
+-- The column to the right of column, which on a cylinder is column 1 for the last column.
+---@param column integer
+---@return integer
+function Stack:columnRightOf(column)
+  if self.cylinder then
+    return column % self.width + 1
+  else
+    return column + 1
+  end
+end
+
+---@param column1 integer
+---@param column2 integer
+---@return boolean # if the columns are next to each other, around the seam included on a cylinder
+function Stack:areNeighbourColumns(column1, column2)
+  local distance = math.abs(column1 - column2)
+  return distance == 1 or (self.cylinder and distance == self.width - 1)
+end
+
+-- Board column under view column viewColumn (SPEC §9); view columns are 0-based around the tower with the cursor's
+-- left panel on consts.CYLINDER_CURSOR_VIEW_COLUMN, which is how PPL numbers its array columns.
+---@param viewColumn integer
+---@return integer
+function Stack:viewToBoardColumn(viewColumn)
+  return self:wrapColumn(self.cur_col + viewColumn - consts.CYLINDER_CURSOR_VIEW_COLUMN)
+end
+
+---@param column integer
+---@return integer viewColumn 0-based, see viewToBoardColumn
+function Stack:boardToViewColumn(column)
+  return (column - self.cur_col + consts.CYLINDER_CURSOR_VIEW_COLUMN) % self.width
 end
 
 -- The board column at the centre of the 3D view, fractional while the tower turns.
@@ -1106,7 +1190,9 @@ function Stack:runCountdown()
       self.cursorLock = true
     end
     self.cur_row = self.height - 1
-    if self.inputMethod == "touch" then
+    if self.cylinder then
+      -- the cursor keeps its column; the tower turns under it instead (see the intro below)
+    elseif self.inputMethod == "touch" then
       self.cur_col = self.width
     elseif self.inputMethod == "controller" then
       self.cur_col = self.width - 1
@@ -1116,16 +1202,22 @@ function Stack:runCountdown()
   end
   if self.countdown_timer then
     local countDownFrame = consts.COUNTDOWN_LENGTH - self.countdown_timer
+    if self.cylinder and countDownFrame < consts.CYLINDER_INTRO_FRAMES then
+      -- PPL's 3D countdown turns the tower left step after step while it rises into place (DoCountDown.s)
+      self:startRotation(-1)
+    end
     if countDownFrame > 0 and countDownFrame % consts.COUNTDOWN_CURSOR_SPEED == 0 then
       local moveIndex = math.floor(countDownFrame / consts.COUNTDOWN_CURSOR_SPEED)
       if moveIndex <= 4 then
         self:moveCursorInDirection("down")
       elseif moveIndex <= 6 then
-        self:moveCursorInDirection("left")
-
+        -- the cursor of a 3D tower slides down only, the intro turns the tower
+        if not self.cylinder then
+          self:moveCursorInDirection("left")
+        end
       elseif moveIndex == 10 then
         self.animatingCursorDuringCountdown = nil
-        if self.inputMethod == "touch" then
+        if self.inputMethod == "touch" and not self.cylinder then
           self.cur_row = 0
           self.cur_col = 0
         end
@@ -1182,7 +1274,12 @@ function Stack:tryQueueSwap(panel1, panel2)
 
     self.swapCount = self.swapCount + 1
     -- by convention, swap column is the left panel
-    self.queuedSwapColumn = math.min(panel1.column, panel2.column)
+    if self.cylinder then
+      -- around the ring the left panel is the one the other is right of, which is the last column at the seam
+      self.queuedSwapColumn = self:columnRightOf(panel1.column) == panel2.column and panel1.column or panel2.column
+    else
+      self.queuedSwapColumn = math.min(panel1.column, panel2.column)
+    end
     self.queuedSwapRow = panel1.row
     return true
   else
@@ -1196,7 +1293,7 @@ end
 ---@return boolean canSwap
 ---@return integer? healthCost
 function Stack:canSwap(panel1, panel2)
-  if math.abs(panel1.column - panel2.column) ~= 1 or panel1.row ~= panel2.row then
+  if not self:areNeighbourColumns(panel1.column, panel2.column) or panel1.row ~= panel2.row then
     -- panels are not horizontally adjacent, can't swap
     return false
   elseif self.do_countdown or self.clock <= 1 then
@@ -1259,11 +1356,12 @@ end
 -- Swaps panels at the current cursor location
 function Stack:swap(row, col)
   local panels = self.panels
+  local rightCol = self:columnRightOf(col)
   local leftPanel = panels[row][col]
-  local rightPanel = panels[row][col + 1]
+  local rightPanel = panels[row][rightCol]
   leftPanel:startSwap(true)
   rightPanel:startSwap(false)
-  Panel.switch(leftPanel, rightPanel, panels)
+  Panel.switch(leftPanel, rightPanel, panels, self.cylinder and self.width or nil)
   -- technically they don't have to be reassigned but it makes the code below a bit easier to read
   leftPanel, rightPanel = rightPanel, leftPanel
 
@@ -1276,7 +1374,7 @@ function Stack:swap(row, col)
     if (leftPanel.color ~= 0) and (panels[row - 1][col].color == 0 or panels[row - 1][col].state == "falling") then
       leftPanel.dont_swap = true
     end
-    if (rightPanel.color ~= 0) and (panels[row - 1][col + 1].color == 0 or panels[row - 1][col + 1].state == "falling") then
+    if (rightPanel.color ~= 0) and (panels[row - 1][rightCol].color == 0 or panels[row - 1][rightCol].state == "falling") then
       rightPanel.dont_swap = true
     end
   end
@@ -1288,7 +1386,7 @@ function Stack:swap(row, col)
     if leftPanel.color == 0 and panels[row + 1][col].color ~= 0 then
       leftPanel.dont_swap = true
     end
-    if rightPanel.color == 0 and panels[row + 1][col + 1].color ~= 0 then
+    if rightPanel.color == 0 and panels[row + 1][rightCol].color ~= 0 then
       rightPanel.dont_swap = true
     end
   end

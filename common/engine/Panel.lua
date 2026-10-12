@@ -803,7 +803,8 @@ end
 ---@param panel1 Panel
 ---@param panel2 Panel
 ---@param panels Panel[][]
-function Panel.switch(panel1, panel2, panels)
+---@param ringWidth integer? the stack's width if it is a cylinder, where the first and last column are adjacent too
+function Panel.switch(panel1, panel2, panels, ringWidth)
   -- confirm the panel positions are up to date
   assert(panel1.id == panels[panel1.row][panel1.column].id)
   assert(panel2.id == panels[panel2.row][panel2.column].id)
@@ -811,7 +812,7 @@ function Panel.switch(panel1, panel2, panels)
   -- confirm the panels are directly adjacent to each other
   local rowDiff = panel1.row - panel2.row
   local colDiff = panel1.column - panel2.column
-  assert(math.abs(rowDiff + colDiff) == 1)
+  assert(math.abs(rowDiff + colDiff) == 1 or (ringWidth and rowDiff == 0 and math.abs(colDiff) == ringWidth - 1))
 
   local p1row = panel1.row
   local p1col = panel1.column
