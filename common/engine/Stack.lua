@@ -1157,6 +1157,10 @@ function Stack:runCountdown()
   end
   if self.countdown_timer then
     local countDownFrame = consts.COUNTDOWN_LENGTH - self.countdown_timer
+    if self.cylinder and countDownFrame < consts.CYLINDER_INTRO_FRAMES then
+      -- Pokémon Puzzle League turns the tower left while it rises into place (DoCountDown.s)
+      self:startRotation(-1)
+    end
     if countDownFrame > 0 and countDownFrame % consts.COUNTDOWN_CURSOR_SPEED == 0 then
       local moveIndex = math.floor(countDownFrame / consts.COUNTDOWN_CURSOR_SPEED)
       if moveIndex <= 4 then

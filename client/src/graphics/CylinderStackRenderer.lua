@@ -68,6 +68,9 @@ local TUBE_COLORS = {
   {base = {0.84, 0.16, 0.16}, light = {1, 0.62, 0.56}, dark = {0.42, 0.05, 0.05}},
 }
 
+-- the tower rises from this many rows low during the countdown (DoCountDown.s)
+local INTRO_ROWS = 6
+
 local VERTEX_FORMAT
 if system.meetsLoveVersionRequirement(12, 0) then
   VERTEX_FORMAT = {
@@ -368,7 +371,21 @@ end
 function CylinderStackRenderer:eyeLevel()
   local stack = self.stack
   return stack.panelOriginYOffset + (stack.engine.height - 1) * PANEL_SIZE + ROW_ONE_BOTTOM * PANEL_SIZE / ROW_HEIGHT
-      + stack.engine.displacement
+      + stack.engine.displacement + self:introDrop()
+end
+
+-- the countdown raises the tower into place while the engine turns it
+---@return number
+function CylinderStackRenderer:introDrop()
+  local countdownTimer = self.stack.engine.countdown_timer
+  if not countdownTimer then
+    return 0
+  end
+  local countdownFrame = consts.COUNTDOWN_LENGTH - countdownTimer
+  if countdownFrame >= consts.CYLINDER_INTRO_FRAMES then
+    return 0
+  end
+  return (consts.CYLINDER_INTRO_FRAMES - countdownFrame) / consts.CYLINDER_INTRO_FRAMES * INTRO_ROWS * PANEL_SIZE
 end
 
 ---@param texture love.Texture

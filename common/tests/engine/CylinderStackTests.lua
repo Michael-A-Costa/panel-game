@@ -197,17 +197,23 @@ end
 
 rollbackDuringATurnTest()
 
-local function countdownKeepsTheCursorColumnTest()
+-- Pokémon Puzzle League turns the tower left a column at a time while it rises into place (DoCountDown.s)
+local function countdownTurnsTheTowerTest()
   local match, stack = CylinderTestingUtils.createMatch({doCountdown = true})
   local startColumn = stack.cur_col
+  local columnAfterIntro = stack:wrapColumn(startColumn - consts.CYLINDER_INTRO_FRAMES / consts.CYLINDER_ROTATION_FRAMES)
   stack:receiveConfirmedInput(string.rep(idle, 200))
+
+  StackReplayTestingUtils:simulateMatchUntil(match, consts.COUNTDOWN_START + consts.CYLINDER_INTRO_FRAMES)
+  assertEqual(stack.rotationTimer, 0, "after the intro")
+  assertEqual(stack.cur_col, columnAfterIntro, "after the intro")
   StackReplayTestingUtils:simulateMatchUntil(match, consts.COUNTDOWN_START + consts.COUNTDOWN_LENGTH + 1)
   assertEqual(stack.cur_row, 7, "after the countdown")
-  assertEqual(stack.cur_col, startColumn, "after the countdown")
+  assertEqual(stack.cur_col, columnAfterIntro, "after the countdown")
   StackReplayTestingUtils:cleanup(match)
 end
 
-countdownKeepsTheCursorColumnTest()
+countdownTurnsTheTowerTest()
 
 -- touch can't turn a cylinder, so it only raises
 local function touchDoesNotMoveTheCursorTest()

@@ -77,5 +77,6 @@ consts.ATTACK_TYPE = { combo=0, chain=1, shock=2 }
 -- Pokémon Puzzle League's 3D mode, played on a tower of 18 columns that turns under the cursor
 consts.CYLINDER_WIDTH = 18
 consts.CYLINDER_ROTATION_FRAMES = 4 -- frames to turn the tower by one column
+consts.CYLINDER_INTRO_FRAMES = 48 -- countdown frames in which the tower turns and rises into place
 
 return consts
