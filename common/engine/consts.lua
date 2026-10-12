@@ -74,4 +74,8 @@ consts.SPEED_TO_RISE_TIME = tableUtils.map(
 
 consts.ATTACK_TYPE = { combo=0, chain=1, shock=2 }
 
+-- Pokémon Puzzle League's 3D tower (docs/3d-mode/SPEC.md §1-2)
+consts.CYLINDER_WIDTH = 18
+consts.CYLINDER_ROTATION_FRAMES = 4 -- frames to turn the tower by one column
+
 return consts

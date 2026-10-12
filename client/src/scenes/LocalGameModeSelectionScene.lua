@@ -33,6 +33,13 @@ function LocalGameModeSelectionScene:load(sceneParams)
         GAME.navigationStack:push(CharacterSelect2p({battleRoom = GAME.battleRoom}))
       end
     end),
+    ui.MenuItem.createButtonMenuItem("vs_3d", nil, nil, function ()
+      GAME.battleRoom = BattleRoom.createLocalFromGameMode(GameModes.getPreset(GameModes.IDs.TWO_PLAYER_VS_3D), GameBase)
+      if GAME.battleRoom then
+        GAME.theme:playValidationSfx()
+        GAME.navigationStack:push(CharacterSelect2p({battleRoom = GAME.battleRoom}))
+      end
+    end),
     ui.MenuItem.createButtonMenuItem("back", nil, nil, Scene.pop)
   }
 

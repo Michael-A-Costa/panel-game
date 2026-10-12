@@ -4,6 +4,7 @@
 ---@field shakeTime integer?
 ---@field startingRow integer?
 ---@field startingCol integer?
+---@field cylinder boolean? if true the stack is Pokémon Puzzle League's 3D tower: an 18-column ring (docs/3d-mode/SPEC.md)
 
 ---@class MatchRules
 ---@field doCountdown boolean

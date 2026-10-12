@@ -137,6 +137,9 @@ local DIRECTION_ROW = {up = 1, down = -1, left = 0, right = 0}
 ---@field cursorDirection CursorDirection? direction of the current movement key
 ---@field cur_row integer row the cursor is on
 ---@field cur_col integer the column the left half of the cursor is on (or just the cursor in case of touch)
+---@field cylinder boolean if the stack is Pokémon Puzzle League's 3D tower: a ring of consts.CYLINDER_WIDTH columns that wraps around
+---@field rotationTimer integer cylinder only: frames left in the running one-column rotation of the tower; 0 when not rotating
+---@field rotationDirection integer cylinder only: -1 or 1, the change to cur_col once the running rotation completes; 0 when not rotating
 ---@field queuedSwapRow integer row in which a swap for next frame has been queued; 0 if none queued
 ---@field queuedSwapColumn integer column of the left (or in case of touch the "target") panel for which a swap has been queued for next frame; 0 if none queued
 ---@field top_cur_row integer the maximum row index the cursor is allowed to go at the moment
@@ -163,11 +166,12 @@ local Stack = class(
 ---@param s Stack
 ---@param args {levelData: LevelData, stackSetupModifications: StackSetupModifications, panelSource: PanelSource, inputMethod: InputMethod, is_local: boolean, stackWinConditions: table<StackWinCondition, any>, stackOverCondition: table<StackOverCondition, any>}
   function(s, args)
-    s.width = 6
-    s.height = 12
     assert(args.levelData ~= nil)
     assert(args.stackSetupModifications ~= nil)
     assert(args.panelSource)
+    s.cylinder = args.stackSetupModifications.cylinder == true
+    s.width = s.cylinder and consts.CYLINDER_WIDTH or 6
+    s.height = 12
 
     s.levelData = args.levelData
     -- the behaviour table contains a bunch of flags to modify the stack behaviour for custom game modes in broader chunks of functionality
@@ -252,6 +256,8 @@ local Stack = class(
     s.cursorDirection = nil -- the direction pressed
     s.cur_row = args.stackSetupModifications.startingRow or 7
     s.cur_col = args.stackSetupModifications.startingCol or 3
+    s.rotationTimer = 0
+    s.rotationDirection = 0
     s.queuedSwapColumn = 0
     s.queuedSwapRow = 0
     if s.behaviours.passiveRaise then
@@ -476,6 +482,8 @@ function Stack.transferStateVariables(destination, source)
   destination.cursorDirection = source.cursorDirection
   destination.cur_row = source.cur_row
   destination.cur_col = source.cur_col
+  destination.rotationTimer = source.rotationTimer
+  destination.rotationDirection = source.rotationDirection
   destination.shake_time = source.shake_time
   destination.peak_shake_time = source.peak_shake_time
   destination.shake_time_on_frame = source.shake_time_on_frame
@@ -1026,6 +1034,17 @@ end
 function Stack:moveCursorInDirection(direction)
   self.cur_row = util.bound(1, self.cur_row + DIRECTION_ROW[direction], self.top_cur_row)
   self.cur_col = util.bound(1, self.cur_col + DIRECTION_COLUMN[direction], self.width - 1)
+end
+
+-- The board column at the centre of the 3D view, fractional while the tower turns.
+-- Column c spans [c - 1, c), so a resting tower is centred on cur_col: the edge between the cursor's two panels.
+---@return number
+function Stack:getCylinderViewCenter()
+  if self.rotationTimer == 0 then
+    return self.cur_col
+  end
+  local progress = (consts.CYLINDER_ROTATION_FRAMES - self.rotationTimer) / consts.CYLINDER_ROTATION_FRAMES
+  return self.cur_col + self.rotationDirection * progress
 end
 
 function Stack:updateSpeed()
