@@ -15,7 +15,8 @@ Panel Attack.
   the tower still tops you out.
 - **[R]** The incoming row is generated across all 18 columns. The "not the same colour as the left neighbour" rule
   wraps: column 0 is also checked against column 17 (`src/main/init3d.c:89`). Shock (`!`) panels land in PPL columns
-  1–5 (2D: 0–4) (`src/main/init3d.c:22`).
+  1–5 (2D: 0–4): the target is `RandomBlock()` (1–5) where 2D uses `RandomBlock() - 1`; when two arrive at once the
+  second goes right of the first, so it can reach column 6 (`src/main/init3d.c:22`, `src/main/init2d.c:50`).
 - **[R]** In PPL the cursor never moves sideways: the whole block array shifts one column per rotation step, with
   wrap-around, and the cursor always sits on array columns 4 and 5 (`src/main/update3d.c:45`, `src/main/init3d.c:108`).
   The shift also moves the incoming row, combo/chain icons, garbage spans and explosions.
@@ -54,8 +55,10 @@ Panel Attack.
 
 - **[R]** A garbage block covers columns [start, end); end < start means it wraps; start == end means a full ring
   (`src/main/attack.c:483`).
-- **[R]** Combo garbage: 3/4/5/6 wide like 2D, placed inside PPL columns 2–7, centred on the cursor
-  (`src/main/attack3d.c:15`).
+- **[R]** Combo garbage: 3/4/5/6 wide like 2D, placed inside PPL columns 2–7: the 2D drop columns shifted right by 2,
+  with the same rotation per width (3 wide alternates columns 2 and 5, 4 wide cycles 2, 3, 4, 5 wide 2, 3; 6 wide and
+  shock garbage at 2), starting from the same state as 2D (`st_AttackPosition = 0x25`) (`src/main/attack3d.c:15`,
+  `src/main/attack2d.c:17`, `asm/usa/nonmatchings/main/dlist/InitGameStateVar.s:106`).
 - **[R]** Chain garbage (`src/main/attack3d.c:134`):
   - ×2: 6 wide (PPL columns 2–7).
   - ×3: 12 wide (PPL column 17 wrapping through 10).
@@ -70,7 +73,12 @@ Panel Attack.
 ## 5. Rising, speed, score
 
 - **[R]** A row is 32 rise units in 3D instead of 16 and the rise rate is doubled, so rows per second and manual raise
-  (16 frames per row) are unchanged (`src/main/animate.c:95`). The tower starts 6 rows low (`src/main/tetris.c:385`).
+  (16 frames per row) are unchanged (`src/main/animate.c:95`).
+- **[R]** The tower starts drawn 6 rows low (`translation = -0.768`, `src/main/tetris.c:385`) as a countdown intro, not a
+  gameplay offset: during the countdown it rises 0.016 per frame (an eighth of a row) for 48 frames while the tower turns
+  left one column per step, and the board itself starts like 2D (`asm/usa/nonmatchings/main/bonus/DoCountDown.s:374`).
+- **[R]** The starting board uses 2D's six column heights three times over, shuffled across the 18 columns
+  (`src/main/tetris.c:71`); the cursor starts on row 3 (`src/main/dlist.c:20`).
 - No 3D-specific speed, stop-time or score tables were found.
 
 ## 6. Modes
