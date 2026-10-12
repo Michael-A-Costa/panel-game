@@ -4,14 +4,16 @@ Add Pokémon Puzzle League's 3D (cylinder) mode to Panel Attack. Rules and geome
 
 ## Status
 
-- [x] **Setup**: fork `Michael-A-Costa/panel-game`, branch `3d-mode` off `beta` (b1f501d). LÖVE 12 runs the suite on
-  macOS: everything passes except the 4 server test files, which fail only because `server/lib/lfs.so` is a Linux
-  build (unrelated to this work).
+- [x] **Setup**: fork `Michael-A-Costa/panel-game`, branch `3d-mode` off `beta` (b1f501d). Tests and screenshots run
+  headless (Xvfb, software GL, no audio) like CI; the whole suite passes.
 - [x] **Plumbing**: `stackSetupModifications.cylinder` builds an 18-wide stack with the SPEC §9 contract fields
   (`rotationTimer`, `rotationDirection`, `getCylinderViewCenter`); presets Endless 3D, Time Attack 3D, 2P VS 3D in
   the menus; `CylinderStackTests` runs a 3D stack for 600 frames.
-- [ ] **Engine**: 18-column ring behind `stackSetupModifications.cylinder`.
-- [ ] **Renderer**: the PPL cylinder in LÖVE 12.
+- [~] **Engine**: 18-column ring behind `stackSetupModifications.cylinder`.
+- [x] **Renderer**: `client/src/graphics/CylinderStackRenderer.lua`, PPL's camera and geometry through a vertex shader,
+  back-to-front like PPL; tube frame (blue P1, red P2); telegraph shows 12/18-wide garbage as full-row chain; touch
+  off for the tower. `renderLauncher.lua` writes scripted 1P/2P screenshots. Not yet seen with the engine's wrapping
+  rules.
 - [ ] **Modes**: Endless 3D, Time Attack 3D, local 2P VS 3D; offline only.
 - [ ] **Verify**: tests, type check, in-game screenshots, side by side with PPL in ares.
 
@@ -26,9 +28,7 @@ Add Pokémon Puzzle League's 3D (cylinder) mode to Panel Attack. Rules and geome
    - 3D garbage shapes: combo 3–6 in front, chain ×2 6 wide, ×3 12 wide, ×4+ full ring with (chain − 3) rows
    - row generator checks the seam (only when `cylinder`, so 2D rows stay identical); start 6 rows low
    - 3D replays round-trip; all 2D tests and replays unchanged
-3. Renderer (SPEC §7): mesh with PPL's camera and geometry, outer faces in front, inner faces at 39% through gaps,
-   side walls, rotation and swap animation from stack state, flat cursor, pop effects on front columns, 1P and 2P
-   layouts. Touch input off in 3D.
+3. ~~Renderer~~ (done; recheck screenshots once the engine lands).
 4. Modes: menu entries, replay labels, 3D replays refused by older clients (engine version bump).
 5. Later: CPU opponent for a vs-CPU "Stadium 3D" (SPEC §8), online 3D (forked server), 3D puzzles.
 
@@ -36,4 +36,6 @@ Add Pokémon Puzzle League's 3D (cylinder) mode to Panel Attack. Rules and geome
 
 - 2026-10-12: Researched prior art (none for Panel Attack; upstream issue #147 is wontfix; JakeSiegers/PuzzleCylinder
   is a Three.js toy with 30 columns; Brandon Kase's PPL browser port is 2D only and private). Wrote SPEC.md from the
-  decomp. Forked, installed LÖVE 12, baseline test run.
+  decomp. Forked, installed LÖVE 12, baseline test run. Plumbing commit. Renderer merged (all tests pass, type check
+  at the 11 pre-existing diagnostics). Moved every automated LÖVE run into a headless container after native runs
+  kept popping windows and playing music.

@@ -6,7 +6,8 @@
 --   love ./renderLauncher.lua game [outputDirectory]  boots the real game and captures it after a few seconds
 --   love ./renderLauncher.lua live                    runs a 2P 3D match on screen for a few seconds and prints the fps
 -- Screenshots are 1280x720 PNGs written to outputDirectory (absolute path) or "renderShots" in the save directory.
--- Set SDL_MAC_BACKGROUND_APP=1 on macOS to keep the window from taking focus.
+-- It opens a window and plays audio like the game; run it under xvfb-run with SDL_AUDIO_DRIVER=dummy and
+-- ALSOFT_DRIVERS=null (as CI runs the tests) to keep both off your desktop.
 
 require("common.lib.mathExtensions")
 local util = require("common.lib.util")
