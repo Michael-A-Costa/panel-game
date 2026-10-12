@@ -90,6 +90,9 @@ function MainMenu:createMainMenu()
     ui.MenuItem.createButtonMenuItem("mm_1_training", nil, nil, function()
       switchToScene(TrainingMenu())
     end),
+    ui.MenuItem.createButtonMenuItem("mm_1_training_3d", nil, nil, function()
+      switchToScene(TrainingMenu({gameModeId = GameModes.IDs.ONE_PLAYER_TRAINING_3D}))
+    end),
     ui.MenuItem.createButtonMenuItem("mm_1_challenge_mode", nil, nil, function()
       switchToScene(ChallengeModeMenu())
     end),

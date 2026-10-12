@@ -11,6 +11,7 @@ local TrainingMenu = class(
   function (self, sceneParams)
     self.backgroundImg = themes[config.theme].images.bg_main
     self.keepMusic = true
+    self.gameModeId = sceneParams and sceneParams.gameModeId or GameModes.IDs.ONE_PLAYER_TRAINING
     self.menu = nil -- set in load
     self:load(sceneParams)
   end,
@@ -43,7 +44,7 @@ function TrainingMenu:goToCharacterSelect(value, width, height)
   if value == nil then
     value = createBasicTrainingMode("", width, height)
   end
-  GAME.battleRoom = BattleRoom.createLocalFromGameMode(GameModes.getPreset(GameModes.IDs.ONE_PLAYER_TRAINING), GameBase)
+  GAME.battleRoom = BattleRoom.createLocalFromGameMode(GameModes.getPreset(self.gameModeId), GameBase)
   if GAME.battleRoom then
     GAME.localPlayer:setAttackEngineSettings(value)
     GAME.navigationStack:push(CharacterSelectVsSelf({battleRoom = GAME.battleRoom}))

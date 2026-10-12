@@ -5,7 +5,8 @@ under the cursor instead of the cursor moving sideways. The rules below follow t
 [puzzleleague64 decompilation](https://github.com/AngheloAlf/puzzleleague64); code comments name the file a rule
 comes from (e.g. `attack3d.c`) where it explains a number.
 
-It is offered as Endless 3D and Time Attack 3D in the main menu and as 2P VS 3D in the local 2P menu, offline only.
+It is offered as Endless 3D, Time Attack 3D and Training 3D in the main menu and as 2P VS 3D in the local 2P menu,
+offline only.
 
 ## Rules
 
