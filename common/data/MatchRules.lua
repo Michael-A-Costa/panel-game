@@ -4,6 +4,7 @@
 ---@field shakeTime integer?
 ---@field startingRow integer?
 ---@field startingCol integer?
+---@field cylinder boolean? if the stack is a cylinder of consts.CYLINDER_WIDTH columns as in Pokémon Puzzle League's 3D mode
 
 ---@class MatchRules
 ---@field doCountdown boolean

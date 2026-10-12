@@ -237,8 +237,9 @@ function util.getWeakTable()
   return t
 end
 
-function assertEqual(a, b)
-  assert(a == b, "Expected " .. a .. " to be equal to " .. b)
+---@param message string? what is compared, to put in front of the error
+function assertEqual(a, b, message)
+  assert(a == b, (message and message .. ": " or "") .. "Expected " .. tostring(a) .. " to be equal to " .. tostring(b))
 end
 
 -- adds a path to lua's CPath for loading C libraries

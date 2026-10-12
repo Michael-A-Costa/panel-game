@@ -51,8 +51,9 @@ end
 ---@param rowWidth integer
 ---@param ncolors integer
 ---@param previousRow string
+---@param isRing boolean? if the row is a cylinder's, whose last panel neighbours its first
 ---@return string newPanels
-function PanelGenerator:generatePanels(rowWidth, ncolors, previousRow)
+function PanelGenerator:generatePanels(rowWidth, ncolors, previousRow, isRing)
   -- logger.info("generating panels with seed: " .. PanelGenerator.rng:getSeed() ..
   --              "\nbuffer: " .. previousPanels ..
   --              "\ncolors: " .. ncolors)
@@ -70,6 +71,12 @@ function PanelGenerator:generatePanels(rowWidth, ncolors, previousRow)
   for n = 1, rowWidth do
     local previousTwoMatchOnThisRow = n > 2 and PanelGenerator.PANEL_COLOR_TO_NUMBER[string.sub(newPanels, -1, -1)] ==
                                           PanelGenerator.PANEL_COLOR_TO_NUMBER[string.sub(newPanels, -2, -2)]
+    local closesRing = isRing and n == rowWidth
+    local firstColor, firstTwoMatch
+    if closesRing then
+      firstColor = PanelGenerator.PANEL_COLOR_TO_NUMBER[string.sub(newPanels, 1, 1)]
+      firstTwoMatch = firstColor == PanelGenerator.PANEL_COLOR_TO_NUMBER[string.sub(newPanels, 2, 2)]
+    end
     local nogood = true
     local color = 0
     local belowColor = PanelGenerator.PANEL_COLOR_TO_NUMBER[string.sub(previousRow, n, n)]
@@ -82,7 +89,12 @@ function PanelGenerator:generatePanels(rowWidth, ncolors, previousRow)
       elseif (previousTwoMatchOnThisRow and color == PanelGenerator.PANEL_COLOR_TO_NUMBER[string.sub(newPanels, -1, -1)]) then
         -- can't have three in a row
         nogood = true
-      elseif (n > 1 and color == PanelGenerator.PANEL_COLOR_TO_NUMBER[string.sub(newPanels, -1, -1)]) then
+      elseif closesRing and color == firstColor
+          and (firstTwoMatch or color == PanelGenerator.PANEL_COLOR_TO_NUMBER[string.sub(newPanels, -1, -1)]) then
+        -- not across the seam either
+        nogood = true
+      elseif (n > 1 and color == PanelGenerator.PANEL_COLOR_TO_NUMBER[string.sub(newPanels, -1, -1)])
+          or (closesRing and color == firstColor) then
         -- only allow horizontally adjacent colors with a certain frequency
         if self.adjacentDenialFrequency >= 1 then
           -- denying everything, no need to track numbers
@@ -115,12 +127,16 @@ end
 
 ---@param rowString string
 ---@param previousRowString string?
+---@param firstCandidate integer? the first index that may be marked, 1 by default
+---@param lastCandidate integer? the last index that may be marked, the row's width by default
 ---@return string rowString
-function PanelGenerator:assignMetalLocations(rowString, previousRowString)
+function PanelGenerator:assignMetalLocations(rowString, previousRowString, firstCandidate, lastCandidate)
   local rowWidth = rowString:len()
   if not previousRowString or previousRowString == "" then
     previousRowString = string.rep("0", rowWidth)
   end
+  firstCandidate = firstCandidate or 1
+  lastCandidate = lastCandidate or rowWidth
 
   local newString = ""
 
@@ -129,10 +145,10 @@ function PanelGenerator:assignMetalLocations(rowString, previousRowString)
   -- just like other panels, we don't want metal panels ghost matching on their own
   -- so reroll until the same position of the previous row is not marked for metal
   while not first or not tonumber(string.sub(previousRowString, first, first)) do
-    first = self:random(1, rowWidth)
+    first = self:random(firstCandidate, lastCandidate)
   end
   while not second or second == first or not tonumber(string.sub(previousRowString, second, second)) do
-    second = self:random(1, rowWidth)
+    second = self:random(firstCandidate, lastCandidate)
   end
 
   for j = 1, rowWidth do

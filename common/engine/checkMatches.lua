@@ -52,15 +52,20 @@ function Stack.getEstimatedGarbageLinesForCombo(comboSize)
   return ESTIMATED_GARBAGE_LINES_PER_COMBO[comboSize]
 end
 
-local function sortByPopOrder(panelList, isGarbage)
+local function sortByPopOrder(panelList, isGarbage, stack)
   table.sort(panelList, function(a, b)
     if a.row == b.row then
+      local aColumn, bColumn = a.column, b.column
+      if stack.cylinder then
+        -- a cylinder's columns pop in the order the player sees them, so a run across the seam pops in one sweep
+        aColumn, bColumn = stack:boardToViewColumn(aColumn), stack:boardToViewColumn(bColumn)
+      end
       if isGarbage then
         -- garbage pops right to left
-        return a.column > b.column
+        return aColumn > bColumn
       else
         -- matches pop left to right
-        return a.column < b.column
+        return aColumn < bColumn
       end
     else
       if isGarbage then
@@ -324,6 +329,35 @@ local candidatePanels = table.new(144, 0)
 local verticallyConnected = table.new(12, 0)
 local horizontallyConnected = table.new(6, 0)
 
+-- a cylinder's rows are rings, so horizontal runs continue across the seam
+---@param stack Stack
+---@param candidatePanel Panel
+local function collectRingNeighbours(stack, candidatePanel)
+  local row = stack.panels[candidatePanel.row]
+  local color = candidatePanel.color
+  local column = candidatePanel.column
+  for _ = 1, stack.width - 1 do
+    column = stack:wrapColumn(column - 1)
+    local panel = row[column]
+    if panel.color == color and canMatch(panel) then
+      horizontallyConnected[#horizontallyConnected + 1] = panel
+    else
+      break
+    end
+  end
+
+  column = candidatePanel.column
+  for _ = 1, stack.width - 1 do
+    column = stack:wrapColumn(column + 1)
+    local panel = row[column]
+    if panel.color == color and canMatch(panel) then
+      horizontallyConnected[#horizontallyConnected + 1] = panel
+    else
+      break
+    end
+  end
+end
+
 -- returns a table of panels that are forming matches on this frame
 function Stack:getMatchingPanels()
   table.clear(candidatePanels)
@@ -360,22 +394,26 @@ function Stack:getMatchingPanels()
         break
       end
     end
-    -- to the left
-    for column = candidatePanel.column - 1, 1, -1 do
-      panel = panels[candidatePanel.row][column]
-      if panel.color == candidatePanel.color  and canMatch(panel) then
-        horizontallyConnected[#horizontallyConnected + 1] = panel
-      else
-        break
+    if self.cylinder then
+      collectRingNeighbours(self, candidatePanel)
+    else
+      -- to the left
+      for column = candidatePanel.column - 1, 1, -1 do
+        panel = panels[candidatePanel.row][column]
+        if panel.color == candidatePanel.color  and canMatch(panel) then
+          horizontallyConnected[#horizontallyConnected + 1] = panel
+        else
+          break
+        end
       end
-    end
-    -- to the right
-    for column = candidatePanel.column + 1, self.width do
-      panel = panels[candidatePanel.row][column]
-      if panel.color == candidatePanel.color and canMatch(panel) then
-        horizontallyConnected[#horizontallyConnected + 1] = panel
-      else
-        break
+      -- to the right
+      for column = candidatePanel.column + 1, self.width do
+        panel = panels[candidatePanel.row][column]
+        if panel.color == candidatePanel.color and canMatch(panel) then
+          horizontallyConnected[#horizontallyConnected + 1] = panel
+        else
+          break
+        end
       end
     end
 
@@ -427,7 +465,7 @@ function Stack:incrementChainCounter()
 end
 
 function Stack:applyMatchToPanels(matchingPanels, isChain, comboSize)
-  matchingPanels = sortByPopOrder(matchingPanels, false)
+  matchingPanels = sortByPopOrder(matchingPanels, false, self)
 
   for i = 1, comboSize do
     matchingPanels[i]:match(isChain, i, comboSize)
@@ -443,7 +481,8 @@ end
 ---@field top integer
 ---@field left integer
 ---@field bottom integer
----@field right integer
+---@field right integer on a cylinder this runs past the stack's width if the piece wraps around the seam
+---@field width integer
 
 ---@param a AABBGarbage
 ---@param b AABBGarbage
@@ -463,6 +502,42 @@ local function matchOnContact(a, b)
     else
       return false
     end
+  else
+    return false
+  end
+end
+
+-- matchOnContact for a cylinder, where pieces may wrap around the seam
+---@param a AABBGarbage
+---@param b AABBGarbage
+---@param ringWidth integer
+---@return boolean
+local function matchOnRingContact(a, b, ringWidth)
+  if a.metal ~= b.metal then
+    return false
+  elseif a.top == b.bottom - 1 or a.bottom == b.top + 1 then
+    -- vertically touching if the spans overlap
+    return (b.left - a.left) % ringWidth < a.width or (a.left - b.left) % ringWidth < b.width
+  elseif (b.left - a.left) % ringWidth == a.width or (a.left - b.left) % ringWidth == b.width then
+    -- one piece starts right where the other ends, verify they share a row
+    return (b.top >= a.bottom and b.top <= a.top) or (a.top >= b.bottom and a.top <= b.top)
+  else
+    return false
+  end
+end
+
+-- if a matching panel touches a piece of garbage on a cylinder, where pieces may wrap around the seam
+---@param panel Panel
+---@param piece AABBGarbage
+---@param ringWidth integer
+---@return boolean
+local function touchesRingGarbage(panel, piece, ringWidth)
+  -- how far right of the piece's left edge the panel is
+  local offset = (panel.column - piece.left) % ringWidth
+  if panel.row == piece.bottom - 1 or panel.row == piece.top + 1 then
+    return offset < piece.width
+  elseif panel.row >= piece.bottom and panel.row <= piece.top then
+    return offset == piece.width or offset == ringWidth - 1
   else
     return false
   end
@@ -503,10 +578,16 @@ function Stack:getConnectedGarbagePanels2(matchingPanels)
       and ((panel.row - panel.y_offset) <= self.height or panel.garbageId <= self.highestGarbageIdMatched) then
         garbageIds[#garbageIds+1] = panel.garbageId
         idGarbage[panel.garbageId] = 1
+        local left = panel.column - panel.x_offset
+        if self.cylinder then
+          -- a piece wrapping the seam has its left edge on the other side
+          left = self:wrapColumn(left)
+        end
         garbagePieces[#garbagePieces+1] =
         {
-          left = panel.column - panel.x_offset,
-          right = panel.column - panel.x_offset + panel.width - 1,
+          left = left,
+          right = left + panel.width - 1,
+          width = panel.width,
           top = panel.row - panel.y_offset + panel.height - 1,
           bottom = panel.row - panel.y_offset,
           metal = not not panel.metal
@@ -522,7 +603,12 @@ function Stack:getConnectedGarbagePanels2(matchingPanels)
     for i, garbageId in ipairs(garbageIds) do
       local garbage = garbagePieces[i]
       for j, matchingPanel in ipairs(matchingPanels) do
-        if matchingPanel.row == garbage.bottom - 1 or matchingPanel.row == garbage.top + 1 then
+        if self.cylinder then
+          if touchesRingGarbage(matchingPanel, garbage, self.width) then
+            matchedIds[#matchedIds+1] = garbageId
+            matchedById[garbageId] = true
+          end
+        elseif matchingPanel.row == garbage.bottom - 1 or matchingPanel.row == garbage.top + 1 then
           -- the matching panel could be vertically touching from below or above
           -- verify horizontal contact
           if matchingPanel.column >= garbage.left and matchingPanel.column <= garbage.right then
@@ -563,7 +649,11 @@ function Stack:getConnectedGarbagePanels2(matchingPanels)
             matching[garbageIds[j]] = garbageMatching[garbageIds[j]][garbageIds[i]]
           elseif i ~= j then
             local b = garbagePieces[j]
-            matching[garbageIds[j]] = matchOnContact(a, b)
+            if self.cylinder then
+              matching[garbageIds[j]] = matchOnRingContact(a, b, self.width)
+            else
+              matching[garbageIds[j]] = matchOnContact(a, b)
+            end
           end
         end
         garbageMatching[garbageIds[i]] = matching
@@ -590,7 +680,8 @@ function Stack:getConnectedGarbagePanels2(matchingPanels)
           local piece = garbagePieces[k]
           for row = piece.bottom, piece.top do
             for col = piece.left, piece.right do
-              garbagePanels[#garbagePanels+1] = self.panels[row][col]
+              -- only a piece wrapping a cylinder's seam runs past the width
+              garbagePanels[#garbagePanels+1] = self.panels[row][col > self.width and col - self.width or col]
             end
           end
         end
@@ -729,7 +820,7 @@ function Stack:getConnectedGarbagePanels(matchingPanels)
 end
 
 function Stack:matchGarbagePanels(garbagePanels, garbageMatchTime, isChain, onScreenCount)
-  garbagePanels = sortByPopOrder(garbagePanels, true)
+  garbagePanels = sortByPopOrder(garbagePanels, true, self)
 
   self:emitSignal("garbageMatched", #garbagePanels, onScreenCount)
 
