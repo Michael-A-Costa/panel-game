@@ -17,7 +17,9 @@ Add Pokémon Puzzle League's 3D (cylinder) mode to Panel Attack. Rules and geome
   back-to-front like PPL; tube frame (blue P1, red P2); telegraph shows 12/18-wide garbage as full-row chain; touch
   off for the tower; the countdown intro rises from 6 rows low. `renderLauncher.lua` writes scripted 1P/2P
   screenshots, including `live_` shots driven only by inputs and the engine's rules.
-- [x] **Modes**: Endless 3D, Time Attack 3D (main menu), local 2P VS 3D (2P local menu); offline only.
+- [x] **Modes**: Endless 3D, Time Attack 3D, 1P vs yourself 3D, 1P training 3D (main menu), local 2P VS 3D (2P local
+  menu); offline only. Training 3D isn't covered by the render harness (it can't drive training in 2D either); the
+  engine test against an attack engine covers 3D garbage arriving.
 - [~] **Verify**: all 50 test files pass headless, type check at the 11 pre-existing diagnostics, live screenshots
   checked against PPL footage. Not yet: Michael playing it with a controller.
 
