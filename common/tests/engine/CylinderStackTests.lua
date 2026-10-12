@@ -134,8 +134,8 @@ end
 
 cursorWrapsAroundTheRingTest()
 
--- Panel Attack's own key repeat stays: one step on the press, the next once the repeat delay is over,
--- then one per step as repeats that land mid step are dropped
+-- PPL's repeat (controller.c): one step on the press, the next once the 10 frame delay is over, then a repeat every
+-- 3 frames of which every other one lands mid step and is dropped, so the tower turns a column per 6 frames
 local function holdingADirectionKeepsTurningTest()
   local match, stack = CylinderTestUtils.createMatch()
   stack.cur_col = 10
@@ -151,16 +151,43 @@ local function holdingADirectionKeepsTurningTest()
     end
   end
 
-  local expected = {5, 15, 19, 23, 27, 31}
+  local expected = {5, 15, 21, 27}
   expect(#landings, #expected, "steps completed while holding Left for 30 frames")
   for i, clock in ipairs(expected) do
     expect(landings[i], clock, "landing of step " .. i)
   end
-  expect(stack.cur_col, 4, "six columns turned")
+  expect(stack.cur_col, 6, "four columns turned")
+  expect(stack.rotationDirection, -1, "the fifth step, started on frame 30, is still turning")
   StackReplayTestingUtils:cleanup(match)
 end
 
 holdingADirectionKeepsTurningTest()
+
+-- on the tower Up and Down repeat on PPL's 3 frame cadence too
+local function holdingUpRepeatsEveryThreeFramesTest()
+  local match, stack = CylinderTestUtils.createMatch()
+  stack.cur_row = 1
+  stack:receiveConfirmedInput(idle .. string.rep(KeyDataEncoding.up, 20))
+
+  local moves = {}
+  local previousRow = stack.cur_row
+  for clock = 1, 21 do
+    StackReplayTestingUtils:simulateMatchUntil(match, clock)
+    if stack.cur_row ~= previousRow then
+      moves[#moves + 1] = clock
+      previousRow = stack.cur_row
+    end
+  end
+
+  local expected = {2, 12, 15, 18, 21}
+  expect(#moves, #expected, "rows moved while holding Up for 20 frames")
+  for i, clock in ipairs(expected) do
+    expect(moves[i], clock, "move " .. i)
+  end
+  StackReplayTestingUtils:cleanup(match)
+end
+
+holdingUpRepeatsEveryThreeFramesTest()
 
 local function upAndDownAreUnchangedTest()
   local match, stack = CylinderTestUtils.createMatch()

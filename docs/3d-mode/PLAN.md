@@ -24,8 +24,7 @@ Add Pokémon Puzzle League's 3D (cylinder) mode to Panel Attack. Rules and geome
 ## Next up
 
 1. Michael plays it and says what feels off.
-2. Feel vs PPL: holding Left/Right turns a column every 4 frames after PA's repeat delay; PPL's repeat (10 frames,
-   then every 3, mid-step repeats dropped) turns about one per 6. Match PPL if it feels too fast.
+2. ~~Hold speed~~: done, PPL's 10-then-every-3 repeat on the tower (a column per 6 frames held).
 3. Replay browser: label the 3D modes (`client/src/scenes/ReplayBrowser.lua` ~195) and check a 3D replay plays back.
 4. CPU opponent for a vs-CPU "Stadium 3D" (SPEC §8).
 5. Later: online 3D (forked server), 3D puzzles.

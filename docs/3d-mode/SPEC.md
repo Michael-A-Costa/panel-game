@@ -29,8 +29,11 @@ Panel Attack.
 - **[R/I]** Linear, no easing: one column per 4 frames. Angles come from 20°/15°/10°/5° cos/sin tables indexed by the
   counter (`src/main/update.c:29`, `src/main/update.c:1882`, `src/main/tetris.c:536`). Input runs before the counter
   update and the draw, so the frames shown are 5°, 10°, 15°, then the snapped shift.
-- **[I]** Holding a direction: auto-repeat after 10 frames, then every 3; repeats that land mid-rotation are dropped,
-  so holding turns about one column per 6 frames (`src/main/controller.c:255`).
+- **[R]** Holding a direction: `hold_button` repeats after `ADJUST_FRAMERATE(10)` frames (10 on NTSC), then every 3
+  (`src/main/controller.c:255`); Input3D reads `hold_button` for the d-pad (`Input3D.s`, `lhu $s3, 0x6`). A repeat
+  that lands while a step is still turning is dropped, so held, steps start at +0, +10, +16, +22…: a column per 6
+  frames. This fork uses the same cadence for all four directions on the tower (`Stack:cursorMoveFires`); 2D keeps
+  Panel Attack's every-frame repeat.
 - **[R]** Up/Down as in 2D (rows 0–11, 0–10 while the stack is part-way through rising) (`src/main/animate.c:181`).
 - **[R]** Left/Right is ignored while the cursor is in state 3 (meaning unknown)
   (`asm/usa/nonmatchings/main/animate3d/Input3D.s:116`).

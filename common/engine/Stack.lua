@@ -145,6 +145,7 @@ local DIRECTION_ROW = {up = 1, down = -1, left = 0, right = 0}
 ---@field cur_col integer the column the left half of the cursor is on (or just the cursor in case of touch) \n
 --- on a cylinder the right half is on cur_col % width + 1, so the cursor can straddle the seam between the last and first column
 ---@field cylinder boolean if the stack is Pokémon Puzzle League's 3D tower: a ring of consts.CYLINDER_WIDTH columns that wraps around
+---@field cylinderRepeatTimer integer cylinder only: frames until a held direction may repeat again; 0 when it may
 ---@field rotationTimer integer cylinder only: frames left in the running one-column rotation of the tower; 0 when not rotating
 ---@field rotationDirection integer cylinder only: -1 or 1, the change to cur_col once the running rotation completes; 0 when not rotating
 ---@field queuedSwapRow integer row in which a swap for next frame has been queued; 0 if none queued
@@ -263,6 +264,7 @@ local Stack = class(
     s.cursorDirection = nil -- the direction pressed
     s.cur_row = args.stackSetupModifications.startingRow or 7
     s.cur_col = args.stackSetupModifications.startingCol or 3
+    s.cylinderRepeatTimer = 0
     s.rotationTimer = 0
     s.rotationDirection = 0
     s.queuedSwapColumn = 0
@@ -489,6 +491,7 @@ function Stack.transferStateVariables(destination, source)
   destination.cursorDirection = source.cursorDirection
   destination.cur_row = source.cur_row
   destination.cur_col = source.cur_col
+  destination.cylinderRepeatTimer = source.cylinderRepeatTimer
   destination.rotationTimer = source.rotationTimer
   destination.rotationDirection = source.rotationDirection
   destination.shake_time = source.shake_time
@@ -1026,7 +1029,7 @@ function Stack:applyCursorDirection(direction)
   if self.inputMethod == "touch" then
     --with touch, cursor movement happen at stack:control time
   else
-    if direction and (self.cur_timer == 0 or self.cur_timer == self.cur_wait_time) and self.cursorLock == nil then
+    if direction and self.cursorLock == nil and self:cursorMoveFires() then
       local previousRow = self.cur_row
       local previousCol = self.cur_col
       self:moveCursorInDirection(direction)
@@ -1037,6 +1040,9 @@ function Stack:applyCursorDirection(direction)
   end
 
   if self.cylinder then
+    if self.cylinderRepeatTimer > 0 then
+      self.cylinderRepeatTimer = self.cylinderRepeatTimer - 1
+    end
     self:advanceRotation()
   end
 
@@ -1044,6 +1050,28 @@ function Stack:applyCursorDirection(direction)
     self.cur_timer = self.cur_timer + 1
   end
   --prof.pop("cursor movement")
+end
+
+-- Whether the held direction moves the cursor this frame: on the press, then every frame once the repeat delay is
+-- over. On the tower the repeats come every CYLINDER_INPUT_REPEAT_FRAMES instead, like PPL's controller; every other
+-- one lands while a step is still turning and is dropped, so holding turns a column per 6 frames as in PPL (SPEC §2).
+---@return boolean
+function Stack:cursorMoveFires()
+  if self.cur_timer == 0 then
+    self.cylinderRepeatTimer = 0
+    return true
+  end
+  if self.cur_timer ~= self.cur_wait_time then
+    return false
+  end
+  if not self.cylinder then
+    return true
+  end
+  if self.cylinderRepeatTimer > 0 then
+    return false
+  end
+  self.cylinderRepeatTimer = consts.CYLINDER_INPUT_REPEAT_FRAMES
+  return true
 end
 
 ---@param direction CursorDirection

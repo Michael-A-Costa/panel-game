@@ -81,6 +81,8 @@ consts.ATTACK_TYPE = { combo=0, chain=1, shock=2 }
 -- Pokémon Puzzle League's 3D tower (docs/3d-mode/SPEC.md §1-2)
 consts.CYLINDER_WIDTH = 18
 consts.CYLINDER_ROTATION_FRAMES = 4 -- frames to turn the tower by one column
+-- once a held direction's first delay is over PPL repeats it every 3 frames (controller.c), not every frame
+consts.CYLINDER_INPUT_REPEAT_FRAMES = 3
 -- 0-based view column of the cursor's left panel; view columns count around the tower from its left silhouette (0),
 -- so 1-8 face the player
 consts.CYLINDER_CURSOR_VIEW_COLUMN = 4
