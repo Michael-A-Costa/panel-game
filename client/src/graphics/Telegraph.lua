@@ -107,6 +107,9 @@ function Telegraph:renderAttack(sender, receiver, frameEarned, telegraphIndex, r
 
   local attackX = (colOrigin - 1) * 16 + sender.panelOriginX
   local attackY = (11 - rowOrigin) * 16 + sender.panelOriginY + (sender.displacement or 0)
+  if sender.cylinderRenderer then
+    attackX, attackY = sender.cylinderRenderer:cardOrigin(colOrigin, rowOrigin)
+  end
   -- -1 for left, 1 for right
   local horizontalDirection = math.sign(destinationX - attackX)
 
@@ -207,6 +210,10 @@ function Telegraph:renderStageGarbageIcon(sender, receiver, garbage, telegraphIn
     end
     if garbage.isMetal then
       image = character.telegraph_garbage_images["metal"]
+    elseif garbage.width > 6 then
+      -- only the 3D tower sends garbage wider than a 2D stack (12 wide or the full ring); there are no icons that wide
+      -- so it shows like a full row of chain garbage
+      image = character.telegraph_garbage_images[math.min(garbage.height, 14)][6]
     else
       image = character.telegraph_garbage_images[1][garbage.width]
     end

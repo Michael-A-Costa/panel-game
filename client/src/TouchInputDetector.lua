@@ -74,6 +74,10 @@ function TouchInputDetector:encodedCharacterForCurrentTouchInput()
 end
 
 function TouchInputDetector:isMouseOverStack(mouseX, mouseY)
+  -- screen positions don't map onto the cells of the 3D tower
+  if self.stack.engine.cylinder then
+    return false
+  end
   return
     mouseX >= self.stack.panelOriginX * self.stack.gfxScale and mouseX <= (self.stack.panelOriginX + (self.width * 16)) * self.stack.gfxScale and
     mouseY >= self.stack.panelOriginY * self.stack.gfxScale and mouseY <= (self.stack.panelOriginY + (self.height* 16)) * self.stack.gfxScale
@@ -81,6 +85,9 @@ end
 
 -- Returns the touched panel coordinate or nil if the stack isn't currently touched
 function TouchInputDetector:touchedPanelCoordinate(mouseX, mouseY)
+  if self.stack.engine.cylinder then
+    return 0, 0
+  end
   local stackLeft = (self.stack.panelOriginX * self.stack.gfxScale)
   local stackTop = (self.stack.panelOriginY * self.stack.gfxScale)
   local panelSize = 16 * self.stack.gfxScale

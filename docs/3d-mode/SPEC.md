@@ -138,3 +138,18 @@ the sections above is a **view column**: view column v (0-based, cursor pair = 4
 
 The renderer must derive everything it draws from stack state at that frame (rollback rule); animation timers it
 needs live in the stack.
+
+## 10. Rendering notes
+
+`client/src/graphics/CylinderStackRenderer.lua`, used by `PlayerStack` when `stack.cylinder`.
+
+- PPL's camera and geometry are used as is. Only the final mapping to the screen is Panel Attack's: rows on the front
+  are 16 units tall like 2D, so rows, cursor, displacement and HUD line up with the 2D well, and the tower's silhouette
+  is scaled to the 96 unit wide 2D well (PPL's 4:3 stretch would make it 113 wide, past the theme's HUD). Still
+  stretched sideways, 14% less than PPL.
+- Painter's order like PPL (back walls, back faces, front walls, front faces), no depth buffer.
+- A plain glass tube (blue P1, red P2) replaces the theme frame and wall; the portrait shows inside it.
+- Besides §9 the renderer reads the same fields the 2D renderer does: `panels`, `displacement` (16 units per row),
+  `cur_row`, panel `state`/`timer`/`isSwappingFromLeft`, garbage `x_offset`/`y_offset`/`width`/`height`/`metal`, and
+  matched garbage `initial_time`/`pop_time`. Rows above `height` are not drawn, as in 2D.
+- Dev harness: `renderLauncher.lua` (see its header) writes screenshots of scripted 3D and 2D states.
