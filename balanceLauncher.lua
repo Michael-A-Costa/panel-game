@@ -22,9 +22,9 @@ local logger = require("common.lib.logger")
 logger.setLogLevel(logger.levels.WARN)
 
 local CpuVersusTestUtils = require("common.tests.engine.CpuVersusTestUtils")
+local StadiumLadder = require("common.data.StadiumLadder")
 
--- the Stadium's stack level per difficulty (STADIUM-SPEC §6)
-local LEVEL_BY_DIFFICULTY = {1, 2, 4, 4, 4}
+-- the level vs-CPU pairings play on unless told otherwise
 local VS_CPU_LEVEL = 4
 
 ---@class BalanceSettings
@@ -64,7 +64,7 @@ local function stadiumLevel(side)
   if side.options.level then
     return VS_CPU_LEVEL
   end
-  return LEVEL_BY_DIFFICULTY[side.options.difficulty]
+  return StadiumLadder.getDifficulty(side.options.difficulty).level
 end
 
 ---@param total number
@@ -194,7 +194,7 @@ local function runSolo(settings, job)
                       sideSummary(totals, played), table.concat(lengths, " "), love.timer.getTime() - startTime))
 end
 
-function love.load(args)
+function love.load()
   local settings = parseArguments(arg)
   print(string.format("seeds %d from %d, cap %d frames%s", settings.seeds, settings.seed, settings.cap,
                       settings.cylinder and ", 3D" or ""))
