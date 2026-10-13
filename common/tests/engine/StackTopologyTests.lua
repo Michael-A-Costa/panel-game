@@ -95,3 +95,25 @@ local function anyWidthWrapsTest()
 end
 
 anyWidthWrapsTest()
+
+-- the same row matches across the seam on a wrapped board and doesn't on a flat one, through the same match code
+local function matchesFollowTheTopologyTest()
+  for _, wraps in ipairs({false, true}) do
+    local match, stack = CylinderTestingUtils.createMatch({flat = true})
+    stack.wraps = wraps
+    CylinderTestingUtils.clearBoard(stack)
+    CylinderTestingUtils.setColors(stack, 1, {[5] = 1, [6] = 1, [1] = 1, [3] = 2})
+    stack:receiveConfirmedInput(string.rep(KeyDataEncoding.idle, 5))
+    StackReplayTestingUtils:simulateMatchUntil(match, 1)
+    local matched = 0
+    for column = 1, stack.width do
+      if stack.panels[1][column].state == "matched" then
+        matched = matched + 1
+      end
+    end
+    assertEqual(matched, wraps and 3 or 0, wraps and "wrapped" or "flat")
+    StackReplayTestingUtils:cleanup(match)
+  end
+end
+
+matchesFollowTheTopologyTest()
