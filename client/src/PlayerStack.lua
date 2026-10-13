@@ -207,7 +207,7 @@ function PlayerStack:onCursorMoved(previousRow, previousCol)
   local playMoveSounds = true -- set this to false to disable move sounds for debugging
   local engine = self.engine
   -- a cylinder's cur_col only changes once a turn is over, so starting one counts as a move
-  local startedRotation = engine.cylinder and engine.rotationTimer == consts.CYLINDER_ROTATION_FRAMES
+  local startedRotation = engine.rotationTimer == consts.CYLINDER_ROTATION_FRAMES
   local moved = engine.cur_row ~= previousRow or engine.cur_col ~= previousCol or startedRotation
   if (playMoveSounds and (engine.cur_timer == 0 or engine.cur_timer == engine.cur_wait_time) and moved) then
     if self:canPlaySfx() then
@@ -497,17 +497,47 @@ function PlayerStack.update_cards(self)
   end
 end
 
+-- The places of things drawn over cells, which a cylinder's renderer projects onto its tower
+
+---@param column integer
+---@param row integer
+---@return number x top left corner of a panel sized box for combo and chain cards at the cell
+---@return number y
+function PlayerStack:cardOrigin(column, row)
+  if self.cylinderRenderer then
+    return self.cylinderRenderer:cardOrigin(column, row)
+  end
+  return self.panelOriginX + (column - 1) * 16, self.panelOriginY + (11 - row) * 16 + self.engine.displacement
+end
+
+---@param column integer
+---@param row integer
+---@return number? x top left corner of a panel sized box for pop effects at the cell; nil if the cell can't be seen
+---@return number? y
+function PlayerStack:popEffectOrigin(column, row)
+  if self.cylinderRenderer then
+    return self.cylinderRenderer:popEffectOrigin(column, row)
+  end
+  return self.panelOriginX + (column - 1) * 16,
+         self.panelOriginY + (self.engine.height - 1 - row) * 16 + self.engine.displacement
+end
+
+---@return number x left edge of the cursor in the stack frame
+---@return number width
+function PlayerStack:getCursorPlacement()
+  if self.cylinderRenderer then
+    return self.cylinderRenderer:getCursorPlacement()
+  end
+  return (self.engine.cur_col - 1) * 16, 40
+end
+
 -- Render the card animations used to show "bursts" when a combo or chain happens
 function PlayerStack.drawCards(self)
   for i = self.card_q.first, self.card_q.last do
     local card = self.card_q[i]
     if CARD_ANIMATION[card.frame] then
-      local draw_x = (self.panelOriginX) + (card.x - 1) * 16
-      local draw_y = (self.panelOriginY) + (11 - card.y) * 16 + self.engine.displacement - CARD_ANIMATION[card.frame]
-      if self.cylinderRenderer then
-        draw_x, draw_y = self.cylinderRenderer:cardOrigin(card.x, card.y)
-        draw_y = draw_y - CARD_ANIMATION[card.frame]
-      end
+      local draw_x, draw_y = self:cardOrigin(card.x, card.y)
+      draw_y = draw_y - CARD_ANIMATION[card.frame]
       -- Draw burst around card
       if card.burstAtlas and card.frame then
         GraphicsUtil.setColor(1, 1, 1, self:opacityForFrame(card.frame, 1, 22))
@@ -625,14 +655,10 @@ function PlayerStack.drawPopEffects(self)
   local panelSize = 16
   for i = self.pop_q.first, self.pop_q.last do
     local popfx = self.pop_q[i]
-    local drawX = (self.panelOriginX) + (popfx.x - 1) * panelSize
-    local drawY = (self.panelOriginY) + (self.engine.height - 1 - popfx.y) * panelSize + self.engine.displacement
-    if self.cylinderRenderer then
-      drawX, drawY = self.cylinderRenderer:popEffectOrigin(popfx.x, popfx.y)
-      if not drawX then
-        -- explosions only show on the front of the tower
-        goto continue
-      end
+    local drawX, drawY = self:popEffectOrigin(popfx.x, popfx.y)
+    if not drawX then
+      -- on the back of a cylinder's tower
+      goto continue
     end
 
     GraphicsUtil.setColor(1, 1, 1, self:opacityForFrame(popfx.frame, 1, 8))
@@ -1013,12 +1039,8 @@ function PlayerStack:render_cursor(shake, matchEnded)
   end
 
   local cursor = self.theme.images.cursor[(floor(self.engine.clock / 16) % 2) + 1]
-  local desiredCursorWidth = 40
   local panelWidth = 16
-  local xPosition = (engine.cur_col - 1) * panelWidth
-  if self.cylinderRenderer then
-    xPosition, desiredCursorWidth = self.cylinderRenderer:getCursorPlacement()
-  end
+  local xPosition, desiredCursorWidth = self:getCursorPlacement()
   local scale_x = desiredCursorWidth / cursor.image:getWidth()
   local scale_y = 24 / cursor.image:getHeight()
 
