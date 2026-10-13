@@ -94,7 +94,7 @@ local function runFrame(match, cpus)
   match:run()
 end
 
--- One Stadium-style match: sideA against sideB on the given stack level. On odd seeds side A plays stack 1, on even
+-- One single-game VERSUS match: sideA against sideB on the given stack level. On odd seeds side A plays stack 1, on even
 -- seeds stack 2, so a series doesn't favour a seat.
 ---@param sideA CpuVersusSide
 ---@param sideB CpuVersusSide
@@ -105,7 +105,7 @@ end
 ---@return CpuVersusResult
 function CpuVersusTestUtils.playMatch(sideA, sideB, seed, stackLevel, cylinder, frameCap)
   frameCap = frameCap or CpuVersusTestUtils.DEFAULT_FRAME_CAP
-  local gameModeId = cylinder and GameModes.IDs.ONE_PLAYER_STADIUM_3D or GameModes.IDs.ONE_PLAYER_STADIUM
+  local gameModeId = cylinder and GameModes.IDs.ONE_PLAYER_VS_CPU_3D or GameModes.IDs.ONE_PLAYER_VS_CPU
   local match = createMatch(gameModeId, stackLevel, seed, 2)
   local sides = seed % 2 == 1 and {sideA, sideB} or {sideB, sideA}
   local stats = {newSideStats(), newSideStats()}

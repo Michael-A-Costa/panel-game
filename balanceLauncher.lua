@@ -5,7 +5,7 @@
 -- in place of main.lua. Run it headless:
 --   run.sh <repo> ./balanceLauncher.lua [options] A:B[@level] ...
 -- A and B are presets: H8 = Hard stage 8 (E, N, H, V, S for Easy to Super Hard), L5 = vs-CPU level 5.
--- @level sets the Panel Attack level of both stacks; without it the Stadium's level for the harder side's difficulty
+-- @level sets the Panel Attack level of both stacks; without it the level PPL plays the harder side's difficulty on
 -- (Easy 1, Normal 2, Hard and up 4) or 4 for vs-CPU levels.
 -- Options:
 --   --seeds=N   matches per pairing (default 10), seeds seed .. seed + N - 1
@@ -22,10 +22,10 @@ local logger = require("common.lib.logger")
 logger.setLogLevel(logger.levels.WARN)
 
 local CpuVersusTestUtils = require("common.tests.engine.CpuVersusTestUtils")
-local StadiumLadder = require("common.data.StadiumLadder")
-
 -- the level vs-CPU pairings play on unless told otherwise
 local VS_CPU_LEVEL = 4
+-- PPL plays both stacks of a difficulty on one VS level, Panel Attack's levels 1, 2 and 4 (STADIUM-SPEC §6)
+local STACK_LEVEL_BY_DIFFICULTY = {1, 2, 4, 4, 4}
 
 ---@class BalanceSettings
 ---@field seeds integer
@@ -60,11 +60,11 @@ end
 
 ---@param side CpuVersusSide
 ---@return integer
-local function stadiumLevel(side)
+local function stackLevel(side)
   if side.options.level then
     return VS_CPU_LEVEL
   end
-  return StadiumLadder.getDifficulty(side.options.difficulty).level
+  return STACK_LEVEL_BY_DIFFICULTY[side.options.difficulty]
 end
 
 ---@param total number
@@ -116,7 +116,7 @@ local function runPairing(settings, job)
   assert(labelA, "a pairing looks like H3:H8 or H3:H8@4, got " .. job)
   local sideA = CpuVersusTestUtils.parseSide(labelA)
   local sideB = CpuVersusTestUtils.parseSide(labelB)
-  local level = tonumber(levelText) or math.max(stadiumLevel(sideA), stadiumLevel(sideB))
+  local level = tonumber(levelText) or math.max(stackLevel(sideA), stackLevel(sideB))
 
   local wins = {0, 0}
   local draws, timeouts, errors = 0, 0, 0
@@ -165,7 +165,7 @@ local function runSolo(settings, job)
   local label, levelText = string.match(job, "^(%w+)@?(%d*)$")
   assert(label, "a solo run looks like H3 or H3@4, got " .. job)
   local side = CpuVersusTestUtils.parseSide(label)
-  local level = tonumber(levelText) or stadiumLevel(side)
+  local level = tonumber(levelText) or stackLevel(side)
 
   local survived, errors = 0, 0
   local frames = 0
