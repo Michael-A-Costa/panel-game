@@ -118,6 +118,11 @@ local allTests = {
   "client.tests.StadiumProgressTests",
 }
 
+-- run only when asked for by name, e.g. benchmarks that measure rather than assert
+local optionalTests = {
+  "common.tests.engine.PplCpuBenchmark",
+}
+
 -- Check for specific test name argument
 local testFilter = nil
 if arg[2] == "debug" and arg[3] then
@@ -130,6 +135,11 @@ local tests = {}
 if testFilter then
   -- Filter tests to only run the specified test
   for _, testName in ipairs(allTests) do
+    if string.find(testName, testFilter) then
+      table.insert(tests, testName)
+    end
+  end
+  for _, testName in ipairs(optionalTests) do
     if string.find(testName, testFilter) then
       table.insert(tests, testName)
     end

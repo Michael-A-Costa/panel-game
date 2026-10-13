@@ -21,13 +21,15 @@ Branch `stadium` (off `3d-mode`), pushed to `origin` (the public fork). Agent wo
 - [x] **2a. PPL CPU core**: RNG, board adapter, brain/queues, helpers, executor, `UpdateAI` cascade with planner slots.
 - [~] **2b. PPL CPU planners**: chains (Vert1–5, Hori1–5), garbage and volume, combos and fallback.
 - [~] **3. Stadium mode**: ladder room, difficulty menu, game scene, recap, saved progress, unlocks, Stadium 3D.
-- [ ] **4. Tuning and polish**: CPU-vs-CPU difficulty ladder check, pre-match and result cards, endings, playtest.
+- [~] **4. Tuning and polish**: 1P vs CPU on PplCpu, name bars, pre-match card and result line, unlock message,
+  progress in its own file, type check clean, CPU frame cost measured (branch `stadium-polish`); still open: the
+  CPU-vs-CPU ladder check (separate agent), endings/credits gate, Michael's playtest.
 
 ## Next up
 
-1. Merge phase 2b (chains, garbage, combos) and phase 3 (running in parallel); switch 1P vs CPU from SimpleCpu to
-   PplCpu once the planners are in.
-2. Phase 4, then Michael plays it.
+1. Merge `stadium-polish` and the CPU-vs-CPU balance branch into `stadium`.
+2. The 3D CPU tops out early at high levels (see the log); look at it with the balance numbers.
+3. Endings/credits gate per difficulty, then Michael plays it.
 
 ## Decisions taken (override any of them)
 
@@ -44,6 +46,9 @@ Branch `stadium` (off `3d-mode`), pushed to `origin` (the public fork). Agent wo
 | Opponents | Panel Attack characters, picked per stage from installed characters (stable order); stage 1 and the pre-boss stage share a rival; stage 16 a boss; no Pokémon names or art | Licensing and CONTRIBUTING asset rules |
 | Unlocks | Beat Hard → Very Hard; beat Very Hard → Super Hard (PPL uses codes) | No hidden button codes in PA |
 | Online | Offline only | Server knows no CPUs |
+| Where progress is saved | `stadium.json` (`client/src/StadiumProgress.lua`, own version), not `scores.json` | Upstream builds share the save identity and stop writing `scores.json` once its version is newer than theirs |
+| Opponent characters | Fixed per run from the character-select order; only a stage wearing the player's pick gets a stand-in (the first in-between candidate) | Rival and boss must not change when the player changes or re-rolls a character |
+| Touch players | Stadium always uses `Game1pStadium`, never `PortraitGame` | PortraitGame has no card, HUD or recap |
 
 ## Phases
 
@@ -91,7 +96,8 @@ INTEGRATION.md §A4 recipe + STADIUM-SPEC §3 flow:
   free, loss → continue (counted, unlimited), losing the boss → back to the rival stage.
 - Scenes: `StadiumMenu` (difficulty, new game / resume, locked difficulties), `Game1pStadium` (HUD: difficulty,
   stage, continues), `StadiumRecapScene`; reuse `CharacterSelectChallenge`.
-- Progress in `Scores` (version 6 + upgrade + tests): per difficulty, 2D and 3D, last stage beaten and continues.
+- Progress per difficulty, 2D and 3D, last stage beaten and continues: first in `Scores` v6, moved to `stadium.json`
+  in phase 4 (see "Decisions taken").
 - Presets `ONE_PLAYER_STADIUM` and `ONE_PLAYER_STADIUM_3D`; main-menu items; localization; replay labels.
 - Tests: ladder advance/continue/boss-loss rules, scores upgrade.
 
@@ -128,3 +134,17 @@ INTEGRATION.md §A4 recipe + STADIUM-SPEC §3 flow:
   `UpdateAI` cascade, presets), with only PossibleRow and the fallback planner live: it clears 21 panels before
   topping out in 2D, so 1P vs CPU stays on SimpleCpu until the planners land. Started chains, garbage, combos and
   Stadium mode agents in parallel.
+- 2026-10-13: Phase 4 polish on `stadium-polish`. 1P vs CPU plays PplCpu; SimpleCpu deleted, ComputerPlayerTests
+  check PplCpu (registry, read-only, deterministic CPU vs CPU 2D/3D with replay round trip, zero allocation); the
+  match owns its CPUs (`ClientMatch.cpus`), `ComputerPlayer` reads the scale sizes from `PplPresets`. Stadium: both
+  name bars (opponent = character name), a pre-match card (difficulty, stage x/N, title, both portraits; 3 s or
+  Swap/Start), "Gym 3 beaten! Next: Gym 4" after a win, the existing "New difficulty unlocked" recap line checked.
+  Progress moved out of `scores.json` (back to v5) into `stadium.json`. Fixed cast per run, touch players keep the
+  Stadium scene, menus share `LocalModeMenu`. lua-language-server (`--checklevel=Warning` and `Information`, repo
+  `.luarc.json`): 3d-mode 11, stadium before polish 44, now 11 (all pre-existing). CPU frame cost
+  (`testLauncher.lua PplCpuBenchmark`, level 10 vs level 10 on PA level 10, 6000 calls after 8 s of play, headless
+  arm64 Docker): 2D JIT on mean 0.015 ms, p99 0.17, max 0.56 (trace compiles); JIT off mean 0.029 ms,
+  p99 0.10, max 0.16. 3D JIT on mean 0.013 ms, p99 0.13, max 0.47; JIT off mean 0.043 ms, p99 0.10, max 0.17.
+  Nothing near the 0.2 ms mean bar. Seen on the way: the 3D CPU at level 8 to 10 tops out within 10 to 15 s on
+  level 5 to 10 stacks (the 3D benchmark needed 6 games for 3000 frames, 2D one), and lost to level 3 in the render
+  shot (cause not looked into). Left for the balance work.
