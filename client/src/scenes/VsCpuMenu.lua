@@ -34,7 +34,7 @@ local lastCpuLevel = 1
 function VsCpuMenu.createBattleRoom(gameModeId, cpuLevel)
   local battleRoom = BattleRoom.createLocalFromGameMode(GameModes.getPreset(gameModeId), GameBase)
   if battleRoom then
-    local cpuPlayer = CpuPlayer(loc("cpu_name", cpuLevel))
+    local cpuPlayer = CpuPlayer(loc("cpu_name", tostring(cpuLevel)))
     cpuPlayer:setCpu("PplCpu", {level = cpuLevel})
     cpuPlayer:copyLevelFrom(GAME.localPlayer)
     battleRoom:addPlayer(cpuPlayer)

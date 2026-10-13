@@ -20,12 +20,14 @@ local function expect(actual, expected, what)
 end
 
 -- Stadium progress whose saving is counted instead of writing the player's stadium.json
----@return UnsavedStadiumProgress
+---@return CountedStadiumProgress
 local function createUnsavedProgress()
-  ---@class UnsavedStadiumProgress : StadiumProgress
+  ---@class CountedStadiumProgress : StadiumProgress
   ---@field saveCount integer
   local saved = StadiumProgress()
   saved.saveCount = 0
+  -- counts instead of writing
+  ---@diagnostic disable-next-line: duplicate-set-field
   saved.saveToFile = function(self)
     self.saveCount = self.saveCount + 1
   end

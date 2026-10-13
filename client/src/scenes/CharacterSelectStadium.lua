@@ -27,7 +27,7 @@ function CharacterSelectStadium:refresh()
   local stadium = self.battleRoom
   if self.ui.stadiumInfo and stadium then
     local stage = stadium:getStage()
-    local text = stadium.difficultyName .. "   " .. loc("stadium_stage", stage.index, #stadium.ladder.stages) .. ": "
+    local text = stadium.difficultyName .. "   " .. loc("stadium_stage", tostring(stage.index), tostring(#stadium.ladder.stages)) .. ": "
         .. Stadium.getStageTitle(stage) .. "   " .. loc("stadium_continues") .. " " .. stadium.continues
     self.ui.stadiumInfo:setText(text, nil, false)
   end

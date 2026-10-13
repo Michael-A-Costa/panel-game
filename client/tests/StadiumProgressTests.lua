@@ -9,6 +9,8 @@ local function createUnsavedProgress()
   ---@field saveCount integer
   local progress = StadiumProgress()
   progress.saveCount = 0
+  -- counts instead of writing
+  ---@diagnostic disable-next-line: duplicate-set-field
   progress.saveToFile = function(self)
     self.saveCount = self.saveCount + 1
   end
@@ -95,6 +97,7 @@ local function newerFileIsLeftAlone()
   assert(progress:get("2d", 1).clears == 0, "fields of an unknown format are not taken over")
   local written = false
   local write = love.filesystem.write
+  ---@diagnostic disable-next-line: duplicate-set-field
   love.filesystem.write = function()
     written = true
   end

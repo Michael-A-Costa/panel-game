@@ -115,7 +115,7 @@ function Game1pStadium:drawCard()
   GraphicsUtil.drawRectangle("fill", 0, 0, width, consts.CANVAS_HEIGHT, 0, 0, 0, 0.6)
 
   GraphicsUtil.printf(self.stadium.difficultyName, 0, 40, width, "center", nil, nil, 10)
-  GraphicsUtil.printf(loc("stadium_stage", self.stadiumStage.index, self.stageCount), 0, 85, width, "center", nil, nil, 4)
+  GraphicsUtil.printf(loc("stadium_stage", tostring(self.stadiumStage.index), tostring(self.stageCount)), 0, 85, width, "center", nil, nil, 4)
   GraphicsUtil.printf(self.stageTitle, 0, 115, width, "center", nil, nil, 30)
 
   local centerX = width / 2
@@ -180,7 +180,7 @@ function Game1pStadium:drawHUD()
   GraphicsUtil.printf(stadium.difficultyName, left, drawY + 26, TEXT_LIMIT, "center", nil, nil, 10)
 
   drawY = drawY + 70
-  GraphicsUtil.printf(loc("stadium_stage", self.stadiumStage.index, self.stageCount), left, drawY, TEXT_LIMIT, "center", nil, nil, 10)
+  GraphicsUtil.printf(loc("stadium_stage", tostring(self.stadiumStage.index), tostring(self.stageCount)), left, drawY, TEXT_LIMIT, "center", nil, nil, 10)
   GraphicsUtil.printf(self.stageTitle, left, drawY + 26, TEXT_LIMIT, "center", nil, nil, 4)
 
   drawY = drawY + 70
