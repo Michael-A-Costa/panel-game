@@ -166,7 +166,13 @@ function PplBoard:refresh()
       local panel = panelRow[boardColumn]
       local blockType
       if panel.isGarbage then
-        blockType = GARBAGE
+        -- PPL gives a cell of garbage's bottom row its panel colour when the cell pops (attack2d.c AttackToBlock),
+        -- while the block is still converting; PA picks those colours at the match and shows them at pop_time
+        if panel.state == "matched" and panel.y_offset == -1 and panel.timer <= panel.pop_time then
+          blockType = TYPE_OF_COLOR[panel.color] or PplBoard.OTHER
+        else
+          blockType = GARBAGE
+        end
       else
         blockType = TYPE_OF_COLOR[panel.color] or PplBoard.OTHER
       end
