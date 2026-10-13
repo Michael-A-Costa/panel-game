@@ -169,6 +169,27 @@ local OnePlayerChallenge = GameMode({
 
 })
 
+-- one game against a computer player; the room adds the CPU, so it is a one player mode like challenge mode
+---@type GameMode
+local OnePlayerVsCpu = GameMode({
+  gameScene = "GameBase",
+  richPresenceLabel = "1p vs CPU", -- loc("mm_1_vs_cpu"),
+  name = "vsCpu",
+
+  -- already known match properties
+  playerCount = 1,
+  stackInteraction = StackInteractions.VERSUS,
+  matchRules = {
+    matchEndConditions = { [MatchRules.MatchEndConditions.STACKS_ACTIVE] = 1 },
+    matchWinRuleset = { { [MatchRules.MatchWinCriterias.GAME_OVER_CLOCK] = MatchRules.orders.HIGHEST} },
+    stackOverConditions = { [MatchRules.StackOverConditions.HEALTH] = 0 },
+    stackWinConditions = {},
+    stackSetupModifications = {},
+    doCountdown = true,
+  },
+
+})
+
 ---@type GameMode
 local TwoPlayerVersus = GameMode({
   gameScene = "GameBase",
@@ -225,6 +246,7 @@ local OnePlayerTimeAttack3D = cylinderVariant(OnePlayerTimeAttack, "timeattack3d
 local TwoPlayerVersus3D = cylinderVariant(TwoPlayerVersus, "VS3d", "2p versus 3D")
 local OnePlayerVsSelf3D = cylinderVariant(OnePlayerVsSelf, "vsSelf3d", "1p vs self 3D")
 local OnePlayerTraining3D = cylinderVariant(OnePlayerTraining, "training3d", "Training 3D")
+local OnePlayerVsCpu3D = cylinderVariant(OnePlayerVsCpu, "vsCpu3d", "1p vs CPU 3D")
 
 GameModes.Styles = Styles
 GameModes.StackInteractions = StackInteractions
@@ -244,6 +266,8 @@ GameModes.IDs = {
   TWO_PLAYER_VS_3D = "TWO_PLAYER_VS_3D",
   ONE_PLAYER_VS_SELF_3D = "ONE_PLAYER_VS_SELF_3D",
   ONE_PLAYER_TRAINING_3D = "ONE_PLAYER_TRAINING_3D",
+  ONE_PLAYER_VS_CPU = "ONE_PLAYER_VS_CPU",
+  ONE_PLAYER_VS_CPU_3D = "ONE_PLAYER_VS_CPU_3D",
 }
 
 ---@type table<GameModeID, GameMode>
@@ -261,6 +285,8 @@ privateGameModes[GameModes.IDs.ONE_PLAYER_TIME_ATTACK_3D] = OnePlayerTimeAttack3
 privateGameModes[GameModes.IDs.TWO_PLAYER_VS_3D] = TwoPlayerVersus3D
 privateGameModes[GameModes.IDs.ONE_PLAYER_VS_SELF_3D] = OnePlayerVsSelf3D
 privateGameModes[GameModes.IDs.ONE_PLAYER_TRAINING_3D] = OnePlayerTraining3D
+privateGameModes[GameModes.IDs.ONE_PLAYER_VS_CPU] = OnePlayerVsCpu
+privateGameModes[GameModes.IDs.ONE_PLAYER_VS_CPU_3D] = OnePlayerVsCpu3D
 
 ---@param mode GameModeID
 ---@return GameMode
@@ -307,6 +333,8 @@ GameModes.gameModeIdToName = {
   TWO_PLAYER_VS_3D = "VS3d",
   ONE_PLAYER_VS_SELF_3D = "vsSelf3d",
   ONE_PLAYER_TRAINING_3D = "training3d",
+  ONE_PLAYER_VS_CPU = "vsCpu",
+  ONE_PLAYER_VS_CPU_3D = "vsCpu3d",
 }
 
 ---@type table<string, GameModeID>
@@ -324,6 +352,8 @@ GameModes.nameToGameModeId = {
   VS3d = "TWO_PLAYER_VS_3D",
   vsSelf3d = "ONE_PLAYER_VS_SELF_3D",
   training3d = "ONE_PLAYER_TRAINING_3D",
+  vsCpu = "ONE_PLAYER_VS_CPU",
+  vsCpu3d = "ONE_PLAYER_VS_CPU_3D",
 }
 
 return GameModes
