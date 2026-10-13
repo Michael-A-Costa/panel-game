@@ -27,7 +27,8 @@ local cpu = ComputerPlayer.create("PplCpu", stack, {seed = 1234, level = 5})
 | `level` | 1-10 on Pokémon Puzzle League's DemoCPU scale (`docs/stadium/AI-SPEC.md` §3.5) |
 | `difficulty`, `stage` | a Stadium preset instead of a level: difficulty 1-5, stage 1 to `ComputerPlayer.STAGE_COUNTS[difficulty]` |
 
-`ComputerPlayer.getPreset(options)` turns either form into the `(difficulty, stage)` pair.
+Both scales are Pokémon Puzzle League's; `PplCpu/PplPresets.lua` holds their tables, and `ComputerPlayer.LEVEL_COUNT`
+and `ComputerPlayer.STAGE_COUNTS` are read from it.
 
 ## getInput
 

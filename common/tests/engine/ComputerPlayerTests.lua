@@ -118,11 +118,18 @@ end
 
 local function registryTest()
   expect(ComputerPlayer.isRegistered("PplCpu"), true, "PplCpu registers itself")
+  -- the registry never looks at the stack before it found the implementation
+  local fakeStack = {}
+  ---@cast fakeStack Stack
   expectError(function()
-    ComputerPlayer.create("NoSuchCpu", {}, {seed = 1, level = 1})
+    ComputerPlayer.create("NoSuchCpu", fakeStack, {seed = 1, level = 1})
   end, "No CPU implementation named NoSuchCpu", "unknown CPUs are refused")
   expectError(function()
-    ComputerPlayer.register("PplCpu", function() end)
+    ComputerPlayer.register("PplCpu", function()
+      return {getInput = function()
+        return KeyDataEncoding.idle
+      end}
+    end)
   end, "already registered", "a name can't be taken twice")
 
   local created = {}
@@ -133,7 +140,6 @@ local function registryTest()
       return KeyDataEncoding.idle
     end}
   end)
-  local fakeStack = {}
   local options = {seed = 3, difficulty = 2, stage = 14}
   local cpu = ComputerPlayer.create("TestCpu", fakeStack, options)
   expect(created.stack, fakeStack, "the implementation gets the stack")
@@ -175,15 +181,9 @@ local function optionValidationTest()
   ComputerPlayer.validateOptions({seed = 4294967295, difficulty = 4, stage = 16})
   ComputerPlayer.validateOptions({seed = 7, difficulty = 1, stage = 11})
 
-  -- the DemoCPU table (AI-SPEC §3.5) and a Stadium preset passing through
-  local difficulty, stage = ComputerPlayer.getPreset({seed = 1, level = 1})
-  expect(difficulty * 100 + stage, 101, "level 1 is Easy stage 1")
-  difficulty, stage = ComputerPlayer.getPreset({seed = 1, level = 8})
-  expect(difficulty * 100 + stage, 510, "level 8 is Super Hard stage 10")
-  difficulty, stage = ComputerPlayer.getPreset({seed = 1, level = 10})
-  expect(difficulty * 100 + stage, 515, "level 10 is Super Hard stage 15")
-  difficulty, stage = ComputerPlayer.getPreset({seed = 1, difficulty = 3, stage = 7})
-  expect(difficulty * 100 + stage, 307, "a Stadium preset is used as it is")
+  -- the sizes come from PPL's tables (AI-SPEC §3.4, §3.5)
+  expect(ComputerPlayer.LEVEL_COUNT, 10, "ten vs CPU levels")
+  expect(table.concat(ComputerPlayer.STAGE_COUNTS, ","), "11,14,15,16,16", "the Stadium ladders' lengths")
 
   local seed1 = ComputerPlayer.deriveSeed(123456, 1)
   local seed2 = ComputerPlayer.deriveSeed(123456, 2)

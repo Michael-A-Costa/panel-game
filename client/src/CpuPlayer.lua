@@ -9,14 +9,13 @@ local DEFAULT_CPU = "PplCpu"
 
 ---@class CpuPlayerSettings : PlayerSettings
 ---@field cpuName string the registered ComputerPlayer implementation that plays
----@field cpuOptions CpuOptions its options without the seed, which every match derives anew
+---@field cpuOptions CpuStrength its options without the seed, which every match derives anew
 
 -- A player whose inputs come from a computer player: its stack is a regular engine Stack that the CPU feeds one input
 -- per frame (see ClientMatch:run), so a match against it records and replays like any other.
 ---@class CpuPlayer : Player
 ---@field settings CpuPlayerSettings
----@field cpu CpuImplementation? the CPU playing the current match's stack
----@field cpuOptions CpuOptions? the options cpu was created with, seed included
+---@field cpuOptions CpuOptions? the options the last match's CPU was created with, seed included
 ---@overload fun(name: string): CpuPlayer
 local CpuPlayer = class(
 ---@param self CpuPlayer
@@ -28,7 +27,6 @@ function(self, name)
   self.settings.wantsReady = true
   self.settings.cpuName = DEFAULT_CPU
   self.settings.cpuOptions = {level = 1}
-  self.cpu = nil
   self.cpuOptions = nil
   self:setCharacter(consts.RANDOM_CHARACTER_SPECIAL_VALUE)
   self:setStage(consts.RANDOM_STAGE_SPECIAL_VALUE)
@@ -38,7 +36,7 @@ Player)
 CpuPlayer.TYPE = "CpuPlayer"
 
 ---@param cpuName string a registered ComputerPlayer implementation
----@param cpuOptions CpuOptions without the seed
+---@param cpuOptions CpuStrength
 function CpuPlayer:setCpu(cpuName, cpuOptions)
   assert(ComputerPlayer.isRegistered(cpuName), "No CPU implementation named " .. tostring(cpuName))
   self.settings.cpuName = cpuName
@@ -54,14 +52,17 @@ function CpuPlayer:copyLevelFrom(player)
   self:setLevelData(deepcpy(player.settings.levelData))
 end
 
--- creates the CPU that plays engineStack for the coming match
+-- Creates the CPU that plays engineStack for the coming match. The match owns it, so it never outlives the stack it
+-- reads; the player only keeps its options for the replay.
 ---@param engineStack Stack
 ---@param seed integer
+---@return CpuImplementation
 function CpuPlayer:createComputerPlayer(engineStack, seed)
-  local options = shallowcpy(self.settings.cpuOptions)
-  options.seed = seed
+  local strength = self.settings.cpuOptions
+  ---@type CpuOptions
+  local options = {seed = seed, level = strength.level, difficulty = strength.difficulty, stage = strength.stage}
   self.cpuOptions = options
-  self.cpu = ComputerPlayer.create(self.settings.cpuName, engineStack, options)
+  return ComputerPlayer.create(self.settings.cpuName, engineStack, options)
 end
 
 -- CPUs are always ready

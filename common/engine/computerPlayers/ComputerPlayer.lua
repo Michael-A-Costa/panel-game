@@ -2,27 +2,31 @@
 -- A CPU is an input device: it reads the stack it plays and hands back one input per frame, nothing else.
 -- See computerPlayer.md for the rules an implementation has to follow.
 
----@class CpuOptions
----@field seed integer seeds the CPU's own random generator; derive it with ComputerPlayer.deriveSeed
+-- how strong a CPU plays, which players and ladders keep; a match adds the seed to make CpuOptions
+---@class CpuStrength
 ---@field level integer? 1-10 on Pokémon Puzzle League's DemoCPU scale (AI-SPEC §3.5); excludes difficulty and stage
 ---@field difficulty integer? 1-5, Stadium difficulty Easy to Super Hard (AI-SPEC §3.4); needs stage
 ---@field stage integer? 1 to ComputerPlayer.STAGE_COUNTS[difficulty], the opponent's place in the Stadium ladder
+
+---@class CpuOptions : CpuStrength
+---@field seed integer seeds the CPU's own random generator; derive it with ComputerPlayer.deriveSeed
 
 ---@class CpuImplementation
 ---@field getInput fun(self: CpuImplementation): string one KeyDataEncoding character for the stack's next frame
 
 ---@alias CpuImplementationClass fun(stack: Stack, options: CpuOptions): CpuImplementation
 
+-- The strength scales are Pokémon Puzzle League's, so its preset tables are the one source of their sizes
+local PplPresets = require("common.engine.computerPlayers.PplCpu.PplPresets")
+
 local ComputerPlayer = {}
 
-ComputerPlayer.LEVEL_COUNT = 10
+ComputerPlayer.LEVEL_COUNT = PplPresets.LEVEL_COUNT
 -- stages per Stadium difficulty, the lengths of PPL's per-difficulty AI tables (STADIUM-SPEC §1)
-ComputerPlayer.STAGE_COUNTS = {11, 14, 15, 16, 16}
-
--- the (difficulty, stage) preset behind each DemoCPU level (AI-SPEC §3.5)
-local DEMO_LEVEL_PRESETS = {
-  {1, 1}, {1, 9}, {2, 3}, {2, 12}, {3, 6}, {3, 14}, {4, 3}, {5, 10}, {4, 15}, {5, 15}
-}
+ComputerPlayer.STAGE_COUNTS = {}
+for difficulty = PplPresets.EASY, PplPresets.SUPER_HARD do
+  ComputerPlayer.STAGE_COUNTS[difficulty] = PplPresets.stageCount(difficulty)
+end
 
 ---@type table<string, CpuImplementationClass>
 local implementations = {}
@@ -68,19 +72,6 @@ function ComputerPlayer.validateOptions(options)
     local stageCount = ComputerPlayer.STAGE_COUNTS[options.difficulty]
     assert(isIntegerBetween(options.stage, 1, stageCount),
            "CPU difficulty " .. options.difficulty .. " has stages 1 to " .. stageCount .. ", got " .. tostring(options.stage))
-  end
-end
-
--- The Stadium preset the options stand for: a level is shorthand for the DemoCPU's (difficulty, stage) pair.
----@param options CpuOptions validated options
----@return integer difficulty
----@return integer stage
-function ComputerPlayer.getPreset(options)
-  if options.level then
-    local preset = DEMO_LEVEL_PRESETS[options.level]
-    return preset[1], preset[2]
-  else
-    return options.difficulty, options.stage
   end
 end
 
