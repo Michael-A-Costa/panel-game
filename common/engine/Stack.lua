@@ -39,7 +39,10 @@ local max = math.max
 
 local DEFAULT_INPUT_REPEAT_DELAY = 20
 -- on a cylinder a held direction repeats every 3 frames once the delay is over, like in Pokémon Puzzle League
-local CYLINDER_INPUT_REPEAT_FRAMES = 3
+local CYLINDER_INPUT_REPEAT_INTERVAL = 3
+-- a wrapped board has no edges, so like Pokémon Puzzle League's tower it is seen from the cursor:
+-- view column 0 is at the left edge of the view and the cursor faces the player in view columns 4 and 5
+local WRAPPED_CURSOR_VIEW_COLUMN = 4
 
 local GARBAGE_SIZE_TO_SHAKE_FRAMES = {
   18, 18, 18, 18, 24, 42,
@@ -139,9 +142,12 @@ local DIRECTION_ROW = {up = 1, down = -1, left = 0, right = 0}
 ---@field cursorDirection CursorDirection? direction of the current movement key
 ---@field cur_row integer row the cursor is on
 ---@field cur_col integer the column the left half of the cursor is on (or just the cursor in case of touch) \n
---- on a cylinder the right half is across the seam in column 1 when cur_col is the last column
----@field cylinder boolean if the columns form a ring as in Pokémon Puzzle League's 3D mode: the last column neighbours the first
----@field cylinderRepeatTimer integer frames until a held direction may repeat on a cylinder
+--- on a wrapped board the right half is across the seam in column 1 when cur_col is the last column
+---@field wraps boolean if the columns form a ring: the last column neighbours the first
+---@field cylinder boolean if the stack plays Pokémon Puzzle League's 3D mode: a wrapped board of consts.CYLINDER_WIDTH columns \n
+--- that turns under the cursor, see cylinder.lua
+---@field inputRepeatInterval integer frames between repeats of a held direction once cur_wait_time is over
+---@field inputRepeatTimer integer frames until a held direction may repeat again
 ---@field rotationTimer integer frames left in the cylinder's current one-column turn; 0 if it isn't turning
 ---@field rotationDirection integer -1 or 1, what the current turn adds to cur_col once it completes; 0 if it isn't turning
 ---@field queuedSwapRow integer row in which a swap for next frame has been queued; 0 if none queued
@@ -175,6 +181,7 @@ local Stack = class(
     assert(args.panelSource)
     s.cylinder = args.stackSetupModifications.cylinder == true
     s.width = s.cylinder and consts.CYLINDER_WIDTH or 6
+    s.wraps = s.cylinder
     s.height = 12
 
     s.levelData = args.levelData
@@ -260,7 +267,8 @@ local Stack = class(
     s.cursorDirection = nil -- the direction pressed
     s.cur_row = args.stackSetupModifications.startingRow or 7
     s.cur_col = args.stackSetupModifications.startingCol or 3
-    s.cylinderRepeatTimer = 0
+    s.inputRepeatInterval = s.cylinder and CYLINDER_INPUT_REPEAT_INTERVAL or 1
+    s.inputRepeatTimer = 0
     s.rotationTimer = 0
     s.rotationDirection = 0
     s.queuedSwapColumn = 0
@@ -487,7 +495,7 @@ function Stack.transferStateVariables(destination, source)
   destination.cursorDirection = source.cursorDirection
   destination.cur_row = source.cur_row
   destination.cur_col = source.cur_col
-  destination.cylinderRepeatTimer = source.cylinderRepeatTimer
+  destination.inputRepeatTimer = source.inputRepeatTimer
   destination.rotationTimer = source.rotationTimer
   destination.rotationDirection = source.rotationDirection
   destination.shake_time = source.shake_time
@@ -605,8 +613,7 @@ function Stack:controls()
   if self.inputMethod == "touch" then
     local cursorColumn, cursorRow
     raise, cursorRow, cursorColumn = TouchDataEncoding.latinStringToTouchData(sdata, self.width)
-    -- touch can't turn a cylinder, so it only raises
-    local canSetCursor = not self.cylinder
+    local canSetCursor = self:canTouchSetCursor()
     if self.do_countdown then
       if self.animatingCursorDuringCountdown then
         canSetCursor = false
@@ -764,9 +771,8 @@ function Stack:run()
       -- a swap during a turn swaps the pair the tower is turning to
       self:finishRotation()
     end
-    local leftPanel = self.panels[self.cur_row][self.cur_col]
-    local rightPanel = self.panels[self.cur_row][self:columnRightOf(self.cur_col)]
-    self:tryQueueSwap(leftPanel, rightPanel)
+    local leftColumn, rightColumn = self:getCursorSwapColumns()
+    self:tryQueueSwap(self.panels[self.cur_row][leftColumn], self.panels[self.cur_row][rightColumn])
   end
   --prof.pop("new swap")
 
@@ -1025,22 +1031,23 @@ function Stack:applyCursorDirection(direction)
   if self.inputMethod == "touch" then
     --with touch, cursor movement happen at stack:control time
   else
-    local repeats = self.cur_timer == self.cur_wait_time and self.cylinderRepeatTimer == 0
+    local repeats = self.cur_timer == self.cur_wait_time and self.inputRepeatTimer == 0
     if direction and (self.cur_timer == 0 or repeats) and self.cursorLock == nil then
       local previousRow = self.cur_row
       local previousCol = self.cur_col
       self:moveCursorInDirection(direction)
-      if self.cylinder then
-        self.cylinderRepeatTimer = CYLINDER_INPUT_REPEAT_FRAMES
-      end
+      self.inputRepeatTimer = self.inputRepeatInterval
       self:emitSignal("cursorMoved", previousRow, previousCol)
     else
       self.cur_row = util.bound(1, self.cur_row, self.top_cur_row)
     end
   end
 
-  if self.cylinder then
-    self:updateCylinderTimers()
+  if self.inputRepeatTimer > 0 then
+    self.inputRepeatTimer = self.inputRepeatTimer - 1
+  end
+  if self.rotationTimer > 0 then
+    self:advanceRotation()
   end
 
   if self.cur_timer ~= self.cur_wait_time then
@@ -1052,38 +1059,114 @@ end
 ---@param direction CursorDirection
 function Stack:moveCursorInDirection(direction)
   self.cur_row = util.bound(1, self.cur_row + DIRECTION_ROW[direction], self.top_cur_row)
-  if self.cylinder then
-    -- the cursor stays in front of the player and the cylinder turns under it
-    if DIRECTION_COLUMN[direction] ~= 0 then
-      self:startRotation(DIRECTION_COLUMN[direction])
-    end
+  self:moveCursorHorizontally(DIRECTION_COLUMN[direction])
+end
+
+---@return boolean # if touch input places the cursor; touching a cell can't turn a cylinder, so there touch only raises
+function Stack:canTouchSetCursor()
+  return not self.cylinder
+end
+
+-- The cursor slides along a flat board and comes round the seam of a wrapped one. A cylinder keeps the cursor in front
+-- of the player and turns under it instead, which changes cur_col once the turn is over (cylinder.lua).
+---@param step integer -1 for left, 1 for right; 0 only keeps the cursor on the board
+function Stack:moveCursorHorizontally(step)
+  if step ~= 0 and self.cylinder then
+    self:startRotation(step)
   else
-    self.cur_col = util.bound(1, self.cur_col + DIRECTION_COLUMN[direction], self.width - 1)
+    self.cur_col = self:getCursorColumnAfterMove(step)
+  end
+end
+
+---@param step integer -1 for left, 1 for right, 0 for none
+---@return integer column the left half of the cursor is on after moving it step columns
+function Stack:getCursorColumnAfterMove(step)
+  if self.wraps then
+    return self:wrapColumn(self.cur_col + step)
+  else
+    -- the cursor covers two columns, so its left half stops one short of the right edge
+    return util.bound(1, self.cur_col + step, self.width - 1)
+  end
+end
+
+---@return integer leftColumn the column of the left panel the cursor swaps
+---@return integer rightColumn the column of the right panel, column 1 on a wrapped board if the cursor straddles the seam
+function Stack:getCursorSwapColumns()
+  local rightColumn = self:columnRightOf(self.cur_col)
+  -- the cursor's left half never goes onto the last column of a flat board
+  ---@cast rightColumn integer
+  return self.cur_col, rightColumn
+end
+
+---@param column integer any column index, also past the board's edges
+---@return integer column the index brought round onto a wrapped board; unchanged on a flat board
+function Stack:wrapColumn(column)
+  if self.wraps then
+    return (column - 1) % self.width + 1
+  else
+    return column
   end
 end
 
 ---@param column integer
----@return integer column wrapped onto the board
-function Stack:wrapColumn(column)
-  return (column - 1) % self.width + 1
+---@return integer? column to the left, nil left of column 1 on a flat board
+function Stack:columnLeftOf(column)
+  if column > 1 then
+    return column - 1
+  elseif self.wraps then
+    return self.width
+  end
 end
 
 ---@param column integer
----@return integer column to the right, which on a cylinder is column 1 for the last column
+---@return integer? column to the right, nil right of the last column on a flat board
 function Stack:columnRightOf(column)
-  if self.cylinder then
-    return column % self.width + 1
-  else
+  if column < self.width then
     return column + 1
+  elseif self.wraps then
+    return 1
   end
 end
 
 ---@param column1 integer
 ---@param column2 integer
----@return boolean # if the columns are next to each other, across the seam included on a cylinder
+---@return boolean # if the columns are next to each other, across the seam of a wrapped board included
 function Stack:areNeighbourColumns(column1, column2)
-  local distance = math.abs(column1 - column2)
-  return distance == 1 or (self.cylinder and distance == self.width - 1)
+  return self:columnRightOf(column1) == column2 or self:columnRightOf(column2) == column1
+end
+
+---@param column integer
+---@param originColumn integer
+---@return integer offset how many columns column is right of originColumn: between 0 and width - 1 on a wrapped board, \n
+--- negative on a flat board if column is left of originColumn
+function Stack:getColumnOffset(column, originColumn)
+  if self.wraps then
+    return (column - originColumn) % self.width
+  else
+    return column - originColumn
+  end
+end
+
+-- Columns as the player sees them, counted from 0 at the left edge of the view: column - 1 on a flat board,
+-- relative to the cursor on a wrapped one (see WRAPPED_CURSOR_VIEW_COLUMN)
+---@param viewColumn integer
+---@return integer column
+function Stack:viewToBoardColumn(viewColumn)
+  if self.wraps then
+    return self:wrapColumn(self.cur_col + viewColumn - WRAPPED_CURSOR_VIEW_COLUMN)
+  else
+    return viewColumn + 1
+  end
+end
+
+---@param column integer
+---@return integer viewColumn see Stack:viewToBoardColumn
+function Stack:boardToViewColumn(column)
+  if self.wraps then
+    return self:getColumnOffset(column, self.cur_col - WRAPPED_CURSOR_VIEW_COLUMN)
+  else
+    return column - 1
+  end
 end
 
 function Stack:updateSpeed()
@@ -1146,7 +1229,7 @@ function Stack:runCountdown()
     end
     self.cur_row = self.height - 1
     if self.cylinder then
-      -- the cursor on a cylinder keeps its column
+      -- a cylinder's cursor keeps its column while the tower turns into place under it (Stack:runCylinderIntro)
     elseif self.inputMethod == "touch" then
       self.cur_col = self.width
     elseif self.inputMethod == "controller" then
@@ -1157,9 +1240,8 @@ function Stack:runCountdown()
   end
   if self.countdown_timer then
     local countDownFrame = consts.COUNTDOWN_LENGTH - self.countdown_timer
-    if self.cylinder and countDownFrame < consts.CYLINDER_INTRO_FRAMES then
-      -- Pokémon Puzzle League turns the tower left while it rises into place (DoCountDown.s)
-      self:startRotation(-1)
+    if self.cylinder then
+      self:runCylinderIntro(countDownFrame)
     end
     if countDownFrame > 0 and countDownFrame % consts.COUNTDOWN_CURSOR_SPEED == 0 then
       local moveIndex = math.floor(countDownFrame / consts.COUNTDOWN_CURSOR_SPEED)
@@ -1171,7 +1253,7 @@ function Stack:runCountdown()
         end
       elseif moveIndex == 10 then
         self.animatingCursorDuringCountdown = nil
-        if self.inputMethod == "touch" and not self.cylinder then
+        if self.inputMethod == "touch" and self:canTouchSetCursor() then
           self.cur_row = 0
           self.cur_col = 0
         end
@@ -1227,13 +1309,8 @@ function Stack:tryQueueSwap(panel1, panel2)
     WigglePay.registerSwap(self, panel1, panel2, healthCost or 0)
 
     self.swapCount = self.swapCount + 1
-    -- by convention, swap column is the left panel
-    if self.cylinder then
-      -- across the seam the left panel is the one in the last column
-      self.queuedSwapColumn = self:columnRightOf(panel1.column) == panel2.column and panel1.column or panel2.column
-    else
-      self.queuedSwapColumn = math.min(panel1.column, panel2.column)
-    end
+    -- by convention, swap column is the left panel, which across the seam of a wrapped board is in the last column
+    self.queuedSwapColumn = self:columnRightOf(panel1.column) == panel2.column and panel1.column or panel2.column
     self.queuedSwapRow = panel1.row
     return true
   else
@@ -1311,11 +1388,12 @@ end
 function Stack:swap(row, col)
   local panels = self.panels
   local rightCol = self:columnRightOf(col)
+  ---@cast rightCol integer
   local leftPanel = panels[row][col]
   local rightPanel = panels[row][rightCol]
   leftPanel:startSwap(true)
   rightPanel:startSwap(false)
-  Panel.switch(leftPanel, rightPanel, panels, self.cylinder and self.width or nil)
+  Panel.switch(leftPanel, rightPanel, panels, self.wraps)
   -- technically they don't have to be reassigned but it makes the code below a bit easier to read
   leftPanel, rightPanel = rightPanel, leftPanel
 
@@ -1368,14 +1446,24 @@ function Stack:tryDropGarbage()
   local garbage = self.incomingGarbage:pop()
   logger.debug(string.format("%d Dropping garbage on stack %d - height %d  width %d  %s", self.stopWatch, self.which, garbage.height, garbage.width, garbage.isMetal and "Metal" or ""))
 
-  if self.cylinder then
-    local width, height, originCol = self:getCylinderGarbagePlacement(garbage)
-    self:dropGarbage(width, height, garbage.isMetal, originCol)
-  else
-    self:dropGarbage(garbage.width, garbage.height, garbage.isMetal)
-  end
+  local width, height, originCol = self:getGarbagePlacement(garbage)
+  self:dropGarbage(width, height, garbage.isMetal, originCol)
 
   return true
+end
+
+---@param garbage Garbage
+---@return integer width
+---@return integer height
+---@return integer originCol the column of the block's left edge
+function Stack:getGarbagePlacement(garbage)
+  if self.cylinder then
+    -- Pokémon Puzzle League places garbage relative to the cursor and reshapes chains (cylinder.lua)
+    return self:getCylinderGarbagePlacement(garbage)
+  else
+    -- combo garbage will alternate it's spawn column
+    return garbage.width, garbage.height, self:getGarbageSpawnColumn(garbage.width)
+  end
 end
 
 function Stack:getGarbageSpawnColumn(garbageWidth)
@@ -1390,12 +1478,10 @@ end
 ---@param width integer
 ---@param height integer
 ---@param isMetal boolean
----@param originCol integer? the column of the block's left edge, by default the next drop column for its width
+---@param originCol integer the column of the block's left edge
 function Stack:dropGarbage(width, height, isMetal, originCol)
   -- garbage always drops in row 13
   local originRow = self.height + 1
-  -- combo garbage will alternate it's spawn column
-  originCol = originCol or self:getGarbageSpawnColumn(width)
 
   self.garbageCreatedCount = self.garbageCreatedCount + 1
   local shakeTime = self:shakeFramesForGarbageSize(width, height)
@@ -1407,10 +1493,10 @@ function Stack:dropGarbage(width, height, isMetal, originCol)
       -- so iterate from 1 to stack width instead of column to column + width - 1
       for col = 1, self.width do
         local panel = self:createPanelAt(row, col)
-        -- modulo so that garbage on a cylinder can wrap around the seam
-        local xOffset = (col - originCol) % self.width
+        -- garbage on a wrapped board can continue across the seam
+        local xOffset = self:getColumnOffset(col, originCol)
 
-        if xOffset < width then
+        if xOffset >= 0 and xOffset < width then
           panel.garbageId = self.garbageCreatedCount
           panel.isGarbage = true
           panel.color = 9

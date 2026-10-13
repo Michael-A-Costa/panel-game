@@ -209,7 +209,7 @@ local function supportedFromBelow(panel, panels)
     local endColumn = panel.column - panel.x_offset + panel.width - 1
     local rowBelow = panels[panel.row - 1]
     for column = startColumn, endColumn do
-      -- garbage on a cylinder can wrap around the seam
+      -- only garbage on a wrapped board runs past the end of a row, it continues at the start
       local panelBelow = rowBelow[(column - 1) % #rowBelow + 1]
       if panelBelow.color ~= 0 then
         if panelBelow.isGarbage == false then
@@ -805,8 +805,8 @@ end
 ---@param panel1 Panel
 ---@param panel2 Panel
 ---@param panels Panel[][]
----@param ringWidth integer? the width of a cylinder stack, whose first and last column are adjacent too
-function Panel.switch(panel1, panel2, panels, ringWidth)
+---@param wraps boolean? if the board wraps, so that its first and last column are adjacent too (see Stack.wraps)
+function Panel.switch(panel1, panel2, panels, wraps)
   -- confirm the panel positions are up to date
   assert(panel1.id == panels[panel1.row][panel1.column].id)
   assert(panel2.id == panels[panel2.row][panel2.column].id)
@@ -814,7 +814,7 @@ function Panel.switch(panel1, panel2, panels, ringWidth)
   -- confirm the panels are directly adjacent to each other
   local rowDiff = panel1.row - panel2.row
   local colDiff = panel1.column - panel2.column
-  assert(math.abs(rowDiff + colDiff) == 1 or (ringWidth and rowDiff == 0 and math.abs(colDiff) == ringWidth - 1))
+  assert(math.abs(rowDiff + colDiff) == 1 or (wraps and rowDiff == 0 and math.abs(colDiff) == #panels[panel1.row] - 1))
 
   local p1row = panel1.row
   local p1col = panel1.column

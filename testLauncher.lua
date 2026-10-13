@@ -71,6 +71,7 @@ local allTests = {
   "common.tests.engine.StackTouchReplayTests",
   "common.tests.engine.SimulatedStackRollbackTests",
   "common.tests.engine.StackRollbackReplayTests",
+  "common.tests.engine.StackTopologyTests",
   "common.tests.engine.CylinderStackTests",
   "common.tests.engine.CylinderMatchTests",
   "common.tests.engine.CylinderGarbageTests",

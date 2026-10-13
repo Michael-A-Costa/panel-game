@@ -10,8 +10,9 @@ local CylinderTestingUtils = {}
 ---@field passiveRaise boolean? false by default so the board stays where the test put it
 ---@field shockEnabled boolean?
 ---@field inputMethod InputMethod?
+---@field flat boolean? a 2D stack set up the same way instead, to compare with
 
--- an endless match on a cylinder, without countdown and rising unless asked for
+-- an endless match on a cylinder (or a flat stack), without countdown and rising unless asked for
 ---@param options CylinderMatchOptions?
 ---@return Match match
 ---@return Stack stack
@@ -19,7 +20,7 @@ function CylinderTestingUtils.createMatch(options)
   options = options or {}
   local rules = GameModes.getPreset(GameModes.IDs.ONE_PLAYER_ENDLESS).matchRules
   rules.doCountdown = options.doCountdown or false
-  rules.stackSetupModifications.cylinder = true
+  rules.stackSetupModifications.cylinder = not options.flat
   rules.stackSetupModifications.behaviours = {
     passiveRaise = options.passiveRaise or false,
     allowManualRaise = options.passiveRaise or false,
