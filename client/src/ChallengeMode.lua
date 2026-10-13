@@ -39,8 +39,13 @@ local ChallengeMode = class(
   BattleRoom
 )
 
-function ChallengeMode.create(difficulty, stageIndex)
-  return ChallengeMode(GameModes.getPreset(GameModes.IDs.ONE_PLAYER_CHALLENGE), Game1pChallenge, difficulty, stageIndex)
+---@param difficulty integer
+---@param stageIndex integer?
+---@param gameModeId GameModeID? ONE_PLAYER_CHALLENGE unless playing the 3D variant
+---@return ChallengeMode
+function ChallengeMode.create(difficulty, stageIndex, gameModeId)
+  gameModeId = gameModeId or GameModes.IDs.ONE_PLAYER_CHALLENGE
+  return ChallengeMode(GameModes.getPreset(gameModeId), Game1pChallenge, difficulty, stageIndex)
 end
 
 ChallengeMode.numDifficulties = 8

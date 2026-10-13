@@ -105,6 +105,7 @@ local allTests = {
   "client.tests.ThemeTests",
   "client.tests.StackGraphicsTests",
   "client.tests.CylinderStackRendererTests",
+  "client.tests.ChallengeMode3DTests",
   "client.tests.InputConfigurationTests",
   "client.tests.DiscreteImageSliderTests",
   "client.tests.PlayerSettingsTests",

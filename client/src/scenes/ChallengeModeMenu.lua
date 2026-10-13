@@ -3,11 +3,14 @@ local class = require("common.lib.class")
 local ChallengeMode = require("client.src.ChallengeMode")
 local ui = require("client.src.ui")
 local CharacterSelectChallenge = require("client.src.scenes.CharacterSelectChallenge")
+local GameModes = require("common.data.GameModes")
 
 local ChallengeModeMenu = class(
   function (self, sceneParams)
     self.backgroundImg = themes[config.theme].images.bg_main
     self.keepMusic = true
+    ---@type GameModeID
+    self.gameModeId = sceneParams and sceneParams.gameModeId or GameModes.IDs.ONE_PLAYER_CHALLENGE
     self:load(sceneParams)
   end,
   Scene
@@ -22,7 +25,7 @@ end
 
 function ChallengeModeMenu:goToCharacterSelect(difficulty)
   GAME.theme:playValidationSfx()
-  GAME.battleRoom = ChallengeMode.create(difficulty)
+  GAME.battleRoom = ChallengeMode.create(difficulty, nil, self.gameModeId)
   if GAME.battleRoom then
     GAME.navigationStack:replace(CharacterSelectChallenge({battleRoom = GAME.battleRoom}))
   end
