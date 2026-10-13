@@ -937,6 +937,8 @@ local function cpuFindsAndClearsARowThree()
     {2, 3, 4, 5, 6, 2},
   })
   local cpu = newCpu(stack, {seed = 7, level = 10})
+  -- without the raise bit: AIVolumeCheck runs before AIPossibleRow and would raise a stack this low first
+  cpu.brain.character = cpu.brain.character - 0x02
   local matched = false
   for _ = 1, 300 do
     stack:receiveConfirmedInput(cpu:getInput())
@@ -965,8 +967,9 @@ local GAME_FRAMES = 3 * 60 * 60
 ---@field mutationCheckEvery integer? compare rollback copies around getInput on every n-th frame
 ---@field measureAllocationAfter integer? count memory allocated by getInput after this many frames
 
--- Plays until three minutes have passed or the stack topped out. Allocation is measured with the JIT off: compiling
--- traces allocates too (mostly for the engine's own code), which is not garbage the CPU makes every frame.
+-- Plays until three minutes have passed or the stack topped out. Allocation is measured with the JIT off and its traces
+-- flushed: compiling traces allocates too (mostly for the engine's own code), and so can leaving a trace an earlier
+-- test file compiled, which is not garbage the CPU makes every frame.
 ---@param match Match
 ---@param stack Stack
 ---@param cpu PplCpu
@@ -983,6 +986,7 @@ local function play(match, stack, cpu, options)
     frame = frame + 1
     if options.measureAllocationAfter and frame == options.measureAllocationAfter then
       jit.off()
+      jit.flush()
       collectgarbage("collect")
       collectgarbage("stop")
       measuring = true
