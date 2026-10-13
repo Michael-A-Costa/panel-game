@@ -415,7 +415,7 @@ RaiseBlocks (`src/main/animate.c:61-112`) **[R]** sets `raise = 0` only when it 
 `cursor.waiting > 0` or a swap running); a raise that reaches the next row sets `raise = −4`, which counts back to 0
 over 4 frames while moves run. So a finished raise keeps the plan (the next command 12 raises again), and only a
 cancelled one drops it. During `state.death` RaiseBlocks does nothing and the raise waits. The port drops the plan
-after every raise and refuses a raise on a topped out stack (PA would end the game): `docs/stadium/BALANCE.md`.
+after every raise and refuses a raise on a topped out stack (PA would end the game): `docs/cpu-ai/BALANCE.md`.
 
 Timing, all **[R]** from the above:
 

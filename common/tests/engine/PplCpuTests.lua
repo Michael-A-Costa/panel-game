@@ -15,7 +15,7 @@ local PplExecutor = require("common.engine.computerPlayers.PplCpu.PplExecutor")
 local PplCombos = require("common.engine.computerPlayers.PplCpu.PplCombos")
 local PplPresets = require("common.engine.computerPlayers.PplCpu.PplPresets")
 
--- Tests for the port of Pokémon Puzzle League's CPU (docs/stadium/AI-SPEC.md, phase 2a of docs/stadium/PLAN.md).
+-- Tests for the port of Pokémon Puzzle League's CPU (docs/cpu-ai/AI-SPEC.md, phase 2a of docs/cpu-ai/PLAN.md).
 
 local IDLE = KeyDataEncoding.idle
 local LEFT = KeyDataEncoding.left

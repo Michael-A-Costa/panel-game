@@ -2,7 +2,7 @@
 
 What Pokémon Puzzle League (N64) does in 1P Stadium, its ladder against CPU opponents, read from the matching decomp
 [AngheloAlf/puzzleleague64](https://github.com/AngheloAlf/puzzleleague64), and how this fork could build it on Panel
-Attack. Companion docs: `docs/3d-mode/SPEC.md` (rules shared with VS, garbage), `docs/stadium/INTEGRATION.md` (where a
+Attack. Companion docs: `docs/3d-mode/SPEC.md` (rules shared with VS, garbage), `docs/cpu-ai/INTEGRATION.md` (where a
 CPU and a new mode plug into this codebase). The CPU's internal algorithm (`ai.c`) is documented separately; this doc
 only records which parameters each stage hands it.
 
@@ -397,7 +397,7 @@ Super Hard → level 4**, the same level for player and CPU.
   stage 16. No Pokémon names, art or the Pokémon-pick screen; at most a cosmetic choice.
 - **Opponent kind:** ChallengeMode fights a `SimulatedStack` (attack-pattern files plus a health bar,
   `ChallengeMode.lua:48-145`); Stadium needs a real CPU stack. The plumbing (CPU as an input source, mode presets,
-  scenes copied from ChallengeMode) is in `docs/stadium/INTEGRATION.md` §A1-A4.
+  scenes copied from ChallengeMode) is in `docs/cpu-ai/INTEGRATION.md` §A1-A4.
 - **Speed ramp and rise times:** decide between PPL-accurate (`st_AdvanceLevel` schedule, PPL rise table) behind a
   Stadium-only rule, or Panel Attack's existing level behaviour. The PPL schedule is notably harsher after a minute
   (level +1 every 10 s, then faster). A new `speedIncreaseMode` would keep 2D VS and old replays untouched.

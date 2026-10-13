@@ -1,5 +1,5 @@
 ---@diagnostic disable: duplicate-set-field
--- CPU-vs-CPU ladder check for the PPL CPU (docs/stadium/BALANCE.md): plays seeded VERSUS matches between two CPU
+-- CPU-vs-CPU ladder check for the PPL CPU (docs/cpu-ai/BALANCE.md): plays seeded VERSUS matches between two CPU
 -- presets on two engine stacks and prints wins, match length and chains/combos per side. No window content, no input
 -- devices, no client setup; like testLauncher.lua it relies on love 12 running the lua file passed as first argument
 -- in place of main.lua. Run it headless:

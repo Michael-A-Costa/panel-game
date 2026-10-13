@@ -11,7 +11,7 @@ local PplRandom = require("common.engine.computerPlayers.PplCpu.PplRandom")
 local PplHelpers = require("common.engine.computerPlayers.PplCpu.PplHelpers")
 local PplChains = require("common.engine.computerPlayers.PplCpu.PplChains")
 
--- Tests for the chain extension planners of the PPL CPU (AI-SPEC §2.1, §2.2; phase 2b of docs/stadium/PLAN.md).
+-- Tests for the chain extension planners of the PPL CPU (AI-SPEC §2.1, §2.2; phase 2b of docs/cpu-ai/PLAN.md).
 -- Boards are written bottom up as PA rows; comments and expected commands use PPL's 0-based rows and columns
 -- (PPL row r is PA row r + 1, column c is PA column c + 1). Expected commands are flat: code, first, second, ...
 

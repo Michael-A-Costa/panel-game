@@ -24,7 +24,7 @@ local cpu = ComputerPlayer.create("PplCpu", stack, {seed = 1234, level = 5})
 | Option | Meaning |
 |--------|---------|
 | `seed` | integer for the CPU's own random generator, from `ComputerPlayer.deriveSeed(matchSeed, playerNumber)` |
-| `level` | 1-10 on Pokémon Puzzle League's DemoCPU scale (`docs/stadium/AI-SPEC.md` §3.5) |
+| `level` | 1-10 on Pokémon Puzzle League's DemoCPU scale (`docs/cpu-ai/AI-SPEC.md` §3.5) |
 | `difficulty`, `stage` | a Stadium preset instead of a level: difficulty 1-5, stage 1 to `ComputerPlayer.STAGE_COUNTS[difficulty]` |
 
 Both scales are Pokémon Puzzle League's; `PplCpu/PplPresets.lua` holds their tables, and `ComputerPlayer.LEVEL_COUNT`
@@ -64,4 +64,4 @@ e.g. swap + down is `16 + 4 + 1 = 21` → `base64encode[21]`.
 - No short-lived tables in `getInput`: preallocate what you need, as for any code in the gameplay loop.
 
 `common/tests/engine/ComputerPlayerTests.lua` checks these rules for `PplCpu`, the port of Pokémon Puzzle League's CPU
-(`PplCpu/`, `docs/stadium/AI-SPEC.md`); run its checks against any new implementation too.
+(`PplCpu/`, `docs/cpu-ai/AI-SPEC.md`); run its checks against any new implementation too.

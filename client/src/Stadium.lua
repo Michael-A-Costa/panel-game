@@ -13,7 +13,7 @@ local CPU_NAME = "PplCpu"
 ---@field resume boolean? continue the difficulty's saved run instead of starting a new one
 ---@field progress StadiumProgress? where progress is read and saved; the player's own if nil
 
--- A run up one difficulty of the 1P Stadium ladder (docs/stadium/STADIUM-SPEC.md §3): the local player against the
+-- A run up one difficulty of the 1P Stadium ladder (docs/cpu-ai/STADIUM-SPEC.md §3): the local player against the
 -- PPL CPU, one game per stage. A win moves on to the next stage, a draw replays the stage for free, a loss costs a
 -- continue, and losing the boss sends the player back to the rival before it. Progress is saved after every match.
 ---@class Stadium : BattleRoom

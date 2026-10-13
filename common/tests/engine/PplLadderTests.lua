@@ -1,6 +1,6 @@
 local CpuVersusTestUtils = require("common.tests.engine.CpuVersusTestUtils")
 
--- The clearest relationships of the CPU-vs-CPU ladder check (docs/stadium/BALANCE.md), on fixed seeds so they stay
+-- The clearest relationships of the CPU-vs-CPU ladder check (docs/cpu-ai/BALANCE.md), on fixed seeds so they stay
 -- cheap. Each pairing won all 30 seeds when measured; the thresholds leave room for small CPU changes, not for a
 -- ladder that turns around.
 

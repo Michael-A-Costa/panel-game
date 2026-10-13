@@ -1,6 +1,6 @@
 local ComputerPlayer = require("common.engine.computerPlayers.ComputerPlayer")
 
--- The 1P Stadium ladder after Pokémon Puzzle League (docs/stadium/STADIUM-SPEC.md): five difficulties of 11 to 16
+-- The 1P Stadium ladder after Pokémon Puzzle League (docs/cpu-ai/STADIUM-SPEC.md): five difficulties of 11 to 16
 -- stages against the PPL CPU. Data only; the client turns the title keys into text and dresses each opponent in a
 -- Panel Attack character.
 

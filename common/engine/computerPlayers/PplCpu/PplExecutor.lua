@@ -162,7 +162,7 @@ function PplExecutor.observe(board, brain)
   if brain.raising and not board.raise then
     -- PPL drops the plan only when the busy field cancels a raise and keeps it when the raise reaches its row
     -- (AI-SPEC §1.7). Here every raise drops it: PA ignores a raise pressed before the last one's row is in, and
-    -- waiting for that froze the CPU under garbage (docs/stadium/BALANCE.md)
+    -- waiting for that froze the CPU under garbage (docs/cpu-ai/BALANCE.md)
     brain.raising = false
     brain:clearQueues()
   end

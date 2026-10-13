@@ -178,7 +178,7 @@ On the ladder it made no difference (E3 : E2 24-76, N2 : N1 23-77 with it).
 - `common/engine/computerPlayers/PplCpu/PplGarbage.lua`: on the tower, AIVolumeCheck's raise logic uses the tallest
   column of the whole tower (`towerHeight`) for its height test. Test: `PplLadderTests` (L10 alone on the tower,
   seeds 6 and 8, lasts a minute; before the fix it topped out after 35 and 37 s).
-- `docs/stadium/AI-SPEC.md` §1.7: when PPL drops the plan after a raise.
+- `docs/cpu-ai/AI-SPEC.md` §1.7: when PPL drops the plan after a raise.
 
 `common/tests/engine/PplLadderTests.lua` (about 5 s) keeps the clearest results on fixed seeds: L10 beats L1, H15
 beats H1, S5 beats H5 (2D), L10 beats L1 and L8 beats L3 (3D), each in at least 5 of 6 seeds, and the tower test

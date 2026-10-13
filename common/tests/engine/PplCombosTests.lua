@@ -10,7 +10,7 @@ local PplHelpers = require("common.engine.computerPlayers.PplCpu.PplHelpers")
 local PplCombos = require("common.engine.computerPlayers.PplCpu.PplCombos")
 local PplPresets = require("common.engine.computerPlayers.PplCpu.PplPresets")
 
--- Tests for the PPL CPU's plain-match and combo planners (AI-SPEC §2.4, phase 2b "combos" of docs/stadium/PLAN.md):
+-- Tests for the PPL CPU's plain-match and combo planners (AI-SPEC §2.4, phase 2b "combos" of docs/cpu-ai/PLAN.md):
 -- AIPossibleCol, AIComboCheck, AICombo3a, AICombo3b, AIComboX and AICombo45 on fixed boards, then whole games.
 -- Boards are given in PA rows bottom up (PA row 1 = PPL row 0) and PA colours; commands are read back as
 -- code, first, second triples, columns 0-based (view columns in 2D, board columns on the tower).

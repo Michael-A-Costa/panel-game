@@ -7,7 +7,7 @@ local PplPlanner = require("common.engine.computerPlayers.PplCpu.PplPlanner")
 local PplExecutor = require("common.engine.computerPlayers.PplCpu.PplExecutor")
 local PplPresets = require("common.engine.computerPlayers.PplCpu.PplPresets")
 
--- A port of Pokémon Puzzle League's CPU opponent (docs/stadium/AI-SPEC.md) as a Panel Attack input device:
+-- A port of Pokémon Puzzle League's CPU opponent (docs/cpu-ai/AI-SPEC.md) as a Panel Attack input device:
 -- it reads its stack and answers one controller input per frame, like a human's hands would.
 -- It never writes to the stack and draws only from its own PPL generator, so for a seed it always plays the same.
 
