@@ -1,20 +1,24 @@
-# Stadium plan (1P vs CPU ladder, Pokémon Puzzle League style)
+# CPU AI plan (Pokémon Puzzle League's CPU in Panel Attack)
 
-A real CPU opponent for Panel Attack, ported from Pokémon Puzzle League's own AI, and a 1P "Stadium" ladder built on
-it: five difficulties, 11–16 stages each, a recurring rival, a final boss, continues and saved progress. 2D like PPL,
-plus a Stadium 3D on the tower (our addition: PPL's Stadium is 2D only).
+A real CPU opponent for Panel Attack, ported from Pokémon Puzzle League's own AI, played from the main menu as
+"1P vs CPU" and "1P vs CPU 3D" with CPU levels 1–10. The work started as a plan for PPL's 1P Stadium ladder on top of
+the CPU; that draft now lives on its own branch (below).
 
 Specs (read before working):
 
 - [AI-SPEC.md](AI-SPEC.md): PPL's CPU function by function, from `src/main/ai.c` and the unmatched asm. The port source.
-- [STADIUM-SPEC.md](STADIUM-SPEC.md): the ladder, per-stage parameters, flow, and how it maps onto Panel Attack.
+- [STADIUM-SPEC.md](STADIUM-SPEC.md): PPL's Stadium ladder; also where the CPU's (difficulty, stage) presets come from.
 - [INTEGRATION.md](INTEGRATION.md): where a CPU hooks into Panel Attack, the mode recipe, test approach, prior art.
+- [BALANCE.md](BALANCE.md): the CPU-vs-CPU ladder check.
 
-Branch `cpu-ai` (off `3d-mode`, renamed from `stadium`), pushed to `origin` (the public fork). Agent work happened on
-sub-branches in `/Users/mcosta/worktrees/panel-attack-3d-<name>` merged into it.
+Branches, both pushed to `origin` (the public fork):
 
-**Goal closed 2026-10-13 on the CPU AI.** The PPL CPU and 1P vs CPU are done; the Stadium mode that was built along
-the way stays in the branch as a first draft, and the rest of Stadium is left for another time.
+- `cpu-ai` (off `3d-mode`): the CPU and 1P vs CPU. Agent work happened on `stadium-*` sub-branches in
+  `/Users/mcosta/worktrees/panel-attack-3d-<name>`, all merged.
+- `stadium` (off `cpu-ai`): the 1P Stadium draft, one revert of the commit that split it out of `cpu-ai`. Rebase or
+  merge it onto `cpu-ai` when picking Stadium up again.
+
+**Goal closed 2026-10-13 on the CPU AI.** Stadium is left for another time.
 
 ## Status
 
@@ -23,8 +27,8 @@ the way stays in the branch as a first draft, and the rest of Stadium is left fo
   "1P vs CPU" (2D and 3D) with CPU level 1–10; tests for determinism, replay round trip, read-only.
 - [x] **2a. PPL CPU core**: RNG, board adapter, brain/queues, helpers, executor, `UpdateAI` cascade with planner slots.
 - [x] **2b. PPL CPU planners**: chains (Vert1–5, Hori1–5), garbage and volume, combos and fallback.
-- [~] **3. Stadium mode** (draft, deferred): ladder room, difficulty menu, game scene, pre-match card, recap, progress
-  in `stadium.json`, unlocks, Stadium 3D. Works and is tested, but nobody has played it.
+- [~] **3. Stadium mode** (draft on branch `stadium`, deferred): ladder room, difficulty menu, game scene, pre-match
+  card, recap, progress in `stadium.json`, unlocks, Stadium 3D. Works and is tested, but nobody has played it.
 - [x] **4. CPU tuning and polish**: 1P vs CPU on PplCpu, SimpleCpu removed, type check back to the 11 pre-existing
   diagnostics, CPU cost ~0.015 ms per frame, CPU-vs-CPU ladder check (BALANCE.md) with two raise fixes.
 
@@ -38,7 +42,9 @@ the way stays in the branch as a first draft, and the rest of Stadium is left fo
    `PplGarbage.lua` ~52, ~292, ~296.
 3. Balance decisions (BALANCE.md): Easy/Normal get weaker when they gain the raise bit (PPL's design); vs-CPU levels
    8 and 9 are out of order (PPL's DemoCPU table); Super Hard mirror matches can stall past 5 minutes.
-4. Stadium, later: endings/credits gate, PPL speed schedule, Stadium 3D tuning, a playtest.
+4. Stadium, later (branch `stadium`): endings/credits gate, PPL speed schedule, Stadium 3D tuning, a playtest.
+
+The Stadium rows in the decisions table below apply to the `stadium` branch.
 
 ## Decisions taken (override any of them)
 
@@ -164,3 +170,6 @@ INTEGRATION.md §A4 recipe + STADIUM-SPEC §3 flow:
   strength rises with stage and difficulty (H15 beats H1 100-0, S16 beats S1 90-5 over 100 seeds); fixed a raise on a
   topped-out stack (instant loss in PA, ignored in PPL) and the tower's raise check using only the 6 visible columns
   (levels 8–10 topped out in 10–15 s; now last 5 minutes alone). Goal closed on the CPU AI; branch renamed `cpu-ai`.
+- 2026-10-13: Split the Stadium draft onto its own branch `stadium` (off `cpu-ai`); `cpu-ai` keeps the CPU, 1P vs CPU
+  and the balance tools, which now use the vs-CPU modes and PPL's stack level per difficulty directly. Docs moved to
+  `docs/cpu-ai/`. Suite green, render harness runs, type check at the 11 pre-existing diagnostics.
