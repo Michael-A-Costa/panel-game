@@ -1,32 +1,43 @@
-This document describes the interface for computer players and the mechanism through which they interact with the game.
+This document describes the interface for computer players (CPUs) and how they interact with the game.
 
 # Mechanism
 
-The computer player interacts with the game as an alternative form of an "input device". If a match has a computer player, the computer player runs as part of the `Match:run()` routine and queues up an input for the computer player's stack.
+A CPU is an alternative input device. It reads the engine `Stack` it plays and returns one input per frame, which goes
+into the stack through `stack:receiveConfirmedInput` exactly like a human's input. Nothing else about the stack knows
+it is played by a CPU, so a match against a CPU is recorded and replayed like any other match: the replay holds the
+inputs and plays back without any CPU code.
 
-The class `ComputerPlayer` in `computerPlayer.lua` acts as en entry point and enables the usage of different implementations of a computer player by defining a pseudo-interface that implementations need to fulfill in order to work.
+`ComputerPlayer.lua` is the registry and holds the contract. Each implementation lives in its own folder under
+`computerPlayers` and registers itself when it is required:
 
-In this way, the computer player is completely separate from the rest of the game's logic, allowing for easy integration of multiple different implementations of computer players. New computer player implementation should get added in their folder under `computerPlayers`.
-
-In order to allow the CPU to make reasonable decision it is constructed with the stack table as an argument. This table is the reference to the real stack used by the engine and __must not be altered__ by the computer player in any way.
+```lua
+ComputerPlayer.register("SimpleCpu", SimpleCpu)
+local cpu = ComputerPlayer.create("SimpleCpu", stack, {seed = 1234, level = 5})
+```
 
 # Interface
 
-## Identifier
-
-Any implementation needs a unique name. This name is used by the computer player to instantiate the correct implementation.
-
 ## Constructor
 
-In order to make reasonable decisions, knowledge about the stack is integral. Any implementation needs to accept a stack as an argument on creation.
+`Impl(stack, options)`, called through `ComputerPlayer.create`, which validates the options first:
 
-## Configuration
+| Option | Meaning |
+|--------|---------|
+| `seed` | integer for the CPU's own random generator, from `ComputerPlayer.deriveSeed(matchSeed, playerNumber)` |
+| `level` | 1-10 on Pokémon Puzzle League's DemoCPU scale (`docs/stadium/AI-SPEC.md` §3.5) |
+| `difficulty`, `stage` | a Stadium preset instead of a level: difficulty 1-5, stage 1 to `ComputerPlayer.STAGE_COUNTS[difficulty]` |
 
-One of the general goals for computer player implementations is configurability. A computer player implementation should be able to return a table of preset configurations via `getConfigs` among which the player can select and possibly finetune. Finally the selection of the user needs to get back to the computer player for which the setter `setConfig` needs to be implemented.
+`ComputerPlayer.getPreset(options)` turns either form into the `(difficulty, stage)` pair.
 
-## GetInput
+## getInput
 
-`getInput` is the integral function for any computer player implementation to do its work. It is mandatory that this function returns an input every time it is run. Inputs are encoded in a binary value to allow different inputs to occur at the same time.
+`cpu:getInput()` returns one `KeyDataEncoding` character: the stack's input for its next frame. Whoever drives the CPU
+(`ClientMatch:run`, or a test) calls it once per frame, only while the stack is caught up
+(`#stack.confirmedInput == stack.clock`) and before that frame runs, so the CPU sees the state after the previous
+frame, the same view a human gets. It is never asked again for a frame, not even after a rollback.
+
+Inputs are bit sums plus one, encoded through `KeyDataEncoding.base64encode`; the named constants (`KeyDataEncoding.left`
+and so on) cover single buttons.
 
 | Input | Value |
 |-------|-------|
@@ -38,4 +49,18 @@ One of the general goals for computer player implementations is configurability.
 | Swap  | 16 |
 | Raise | 32 |
 
-To the combined binary value, 1 needs to be added. This value is then converted into a single character value via the `KeyDataEncoding.base64encode` array, e.g. for swap + down, `16 + 4 + 1 = 21` -> `base64encode[21]`.
+e.g. swap + down is `16 + 4 + 1 = 21` → `base64encode[21]`.
+
+## Rules
+
+- __Never write to the stack__: not its panels, cursor, queues or timers. Reading is fine, as are read-only queries
+  such as `stack:canSwap`.
+- __Never use the panel generator's RNG, `math.random`, `love.math.random`, `os.time` or `love.timer`__. Use a generator
+  of your own seeded from `options.seed`, so CPU vs CPU games are deterministic.
+- Respect Panel Attack's controls: a new direction moves the cursor at once, the same direction again needs a released
+  frame in between (held directions only repeat after a delay); on a 3D tower left/right turn it and presses during a
+  turn are dropped.
+- No short-lived tables in `getInput`: preallocate what you need, as for any code in the gameplay loop.
+
+`common/tests/engine/ComputerPlayerTests.lua` checks these rules for `SimpleCpu`; run its checks against any new
+implementation too.

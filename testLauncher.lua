@@ -76,6 +76,7 @@ local allTests = {
   "common.tests.engine.CylinderGarbageTests",
   "common.tests.engine.CylinderGeneratorTests",
   "common.tests.engine.CylinderReplayTests",
+  "common.tests.engine.ComputerPlayerTests",
   -- disabled for testLauncher because it needs the client love callbacks
   --"common.tests.lib.InputTests",
   "common.tests.lib.JsonEncodingTests",
@@ -108,6 +109,7 @@ local allTests = {
   "client.tests.InputConfigurationTests",
   "client.tests.DiscreteImageSliderTests",
   "client.tests.PlayerSettingsTests",
+  "client.tests.VsCpuTests",
 }
 
 -- Check for specific test name argument

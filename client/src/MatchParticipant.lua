@@ -28,6 +28,7 @@ local ModController = require("client.src.mods.ModController")
 ---@field ready boolean if the participant is ready to start the game (wants to and actually is)
 ---@field human boolean if the participant is a human
 ---@field isLocal boolean if the participant is controlled by a local player
+---@field isCpu boolean if the participant's inputs come from a computer player (see CpuPlayer)
 ---@field playerNumber integer the (external) id for the player within the room; used to assign server messages to the correct player when spectating
 ---@field stack ClientStack?
 
@@ -43,6 +44,7 @@ function(self)
     panelId = config.panels,
   }
   self.human = false
+  self.isCpu = false
 
   self:reset()
 

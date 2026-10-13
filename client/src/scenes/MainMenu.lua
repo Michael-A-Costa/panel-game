@@ -11,6 +11,7 @@ local TimeAttackMenu = require("client.src.scenes.TimeAttackMenu")
 local CharacterSelectVsSelf = require("client.src.scenes.CharacterSelectVsSelf")
 local TrainingMenu = require("client.src.scenes.TrainingMenu")
 local ChallengeModeMenu = require("client.src.scenes.ChallengeModeMenu")
+local VsCpuMenu = require("client.src.scenes.VsCpuMenu")
 local Lobby = require("client.src.scenes.Lobby")
 local LocalGameModeSelectionScene = require("client.src.scenes.LocalGameModeSelectionScene")
 local ReplayBrowser = require("client.src.scenes.ReplayBrowser")
@@ -101,6 +102,12 @@ function MainMenu:createMainMenu()
     end),
     ui.MenuItem.createButtonMenuItem("mm_1_challenge_mode", nil, nil, function()
       switchToScene(ChallengeModeMenu())
+    end),
+    ui.MenuItem.createButtonMenuItem("mm_1_vs_cpu", nil, nil, function()
+      switchToScene(VsCpuMenu())
+    end),
+    ui.MenuItem.createButtonMenuItem("mm_1_vs_cpu_3d", nil, nil, function()
+      switchToScene(VsCpuMenu({gameModeId = GameModes.IDs.ONE_PLAYER_VS_CPU_3D}))
     end),
     ui.MenuItem.createButtonMenuItem("mm_2_vs_online", {""}, nil, function()
       switchToScene(Lobby({serverIp = "panelattack.com"}))

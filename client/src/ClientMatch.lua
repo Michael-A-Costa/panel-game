@@ -17,10 +17,12 @@ local MatchParticipant = require("client.src.MatchParticipant")
 local ChallengeModePlayerStack = require("client.src.ChallengeModePlayerStack")
 local NetworkProtocol = require("common.network.NetworkProtocol")
 local DebugSettings = require("client.src.debug.DebugSettings")
+local ComputerPlayer = require("common.engine.computerPlayers.ComputerPlayer")
 ---@module "client.src.ChallengeModePlayerStack"
+---@module "client.src.CpuPlayer"
 
 ---@class ClientMatch
----@field players (Player|ChallengeModePlayer)[]
+---@field players (Player|ChallengeModePlayer|CpuPlayer)[]
 ---@field stacks (PlayerStack|ChallengeModePlayerStack)[]
 ---@field engine Match
 ---@field matchRules MatchRules
@@ -154,7 +156,7 @@ function ClientMatch:setupFromGameMode()
   for i, player in ipairs(self.players) do
     local engineStack
     local clientStack
-    if player.human then
+    if player.human or player.isCpu then
       engineStack = self.engine:createStackWithSettings(player.settings.levelData, player.isLocal, player.settings.inputMethod)
     else
       ---@cast player ChallengeModePlayer
@@ -163,6 +165,14 @@ function ClientMatch:setupFromGameMode()
 
     clientStack = player:createClientStack(engineStack)
     self.stacks[i] = clientStack
+
+    if player.isCpu then
+      ---@cast player CpuPlayer
+      ---@cast engineStack Stack
+      -- seeded from the match so the same match plays out the same way, which tests and debugging rely on
+      local matchSeed = self.panelSource.seed or 0
+      player:createComputerPlayer(engineStack, ComputerPlayer.deriveSeed(matchSeed, i))
+    end
   end
 
   if self.stackInteraction == GameModes.StackInteractions.ATTACK_ENGINE then
@@ -209,12 +219,19 @@ function ClientMatch:run()
   end
 
   for _, stack in ipairs(self.stacks) do
-    -- if stack.cpu then
-    --   stack.cpu:run(stack)
-    -- end
-    if stack.is_local and stack.send_controls and not stack:game_ended() --[[and not stack.cpu]] then
-      ---@cast stack PlayerStack
-      stack:send_controls()
+    if stack.is_local and not stack:game_ended() then
+      local player = stack.player
+      if player and player.isCpu then
+        ---@cast player CpuPlayer
+        local engine = stack.engine
+        -- like a human the CPU decides each frame from the state the previous one left, and never twice for a frame
+        if #engine.confirmedInput == engine.clock then
+          engine:receiveConfirmedInput(player.cpu:getInput())
+        end
+      elseif stack.send_controls then
+        ---@cast stack PlayerStack
+        stack:send_controls()
+      end
     end
   end
 
@@ -403,7 +420,7 @@ function ClientMatch:finalizeReplay()
       local player = stack.player
       if player then
         metadata.wins = player.wins
-        if player.human then
+        if player.human or player.isCpu then
           ---@cast metadata StackMetadata
           ---@cast player Player
           metadata.name = player.name
@@ -418,6 +435,11 @@ function ClientMatch:finalizeReplay()
           metadata.analytics.score = player.stack.engine.score
           ---@diagnostic disable-next-line: inject-field
           metadata.analytics.rating = player.rating
+          if player.isCpu then
+            ---@cast player CpuPlayer
+            -- only for display and debugging: playback needs no CPU, the inputs are in the replay
+            metadata.cpu = {name = player.settings.cpuName, options = player.cpuOptions}
+          end
         else
           ---@cast metadata SimulatedStackMetadata
           ---@cast player ChallengeModePlayer

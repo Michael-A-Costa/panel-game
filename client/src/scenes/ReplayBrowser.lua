@@ -206,6 +206,10 @@ function ReplayBrowser:draw()
       modeText = loc("mm_1_time")
     elseif selectedReplay.metadata.gameModeName == "endless" then
       modeText = loc("mm_1_endless")
+    elseif selectedReplay.metadata.gameModeName == "vsCpu" then
+      modeText = loc("mm_1_vs_cpu")
+    elseif selectedReplay.metadata.gameModeName == "vsCpu3d" then
+      modeText = loc("mm_1_vs_cpu_3d")
     else
       modeText = "Unknown"
     end

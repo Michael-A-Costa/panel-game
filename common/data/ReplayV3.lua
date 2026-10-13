@@ -46,6 +46,11 @@ local REPLAY_VERSION = 3
 ---@field level integer?
 ---@field difficulty integer?
 ---@field analytics AnalyticsData?
+---@field cpu CpuReplayInfo? set if a computer player played the stack; playback doesn't need it
+
+---@class CpuReplayInfo
+---@field name string the ComputerPlayer implementation
+---@field options CpuOptions the options it was created with, seed included
 
 ---@class SimulatedStackMetadata : BaseStackMetadata
 ---@field challengeModeDifficulty integer?
@@ -62,7 +67,7 @@ local REPLAY_VERSION = 3
 ---@field completed boolean? If the match that is represented by the replay has already finished
 ---@field gameId integer? The identifier for the game on the server it was played on
 ---@field duration integer? How long the game took in frames
----@field gameModeName ("timeattack" | "endless" | "vsSelf" | "training" | "challenge" | "VS" | "puzzle")?
+---@field gameModeName ("timeattack" | "endless" | "vsSelf" | "training" | "challenge" | "VS" | "puzzle" | "vsCpu" | "vsCpu3d")?
 
 ---@class ReplayV3
 ---@field engineVersion string The engine version the replay was generated with
@@ -209,6 +214,10 @@ function ReplayV3:generatePath(pathSeparator)
     path = path .. sep .. "Training"
   elseif self.metadata.gameModeName == "challenge" then
     path = path .. sep .. "Challenge Mode"
+  elseif self.metadata.gameModeName == "vsCpu" then
+    path = path .. sep .. "Vs CPU"
+  elseif self.metadata.gameModeName == "vsCpu3d" then
+    path = path .. sep .. "Vs CPU 3D"
   elseif self.metadata.gameModeName == "VS" then
     local names = {}
     for i, player in ipairs(self.metadata.stacks) do
