@@ -115,8 +115,6 @@ local allTests = {
   "client.tests.DiscreteImageSliderTests",
   "client.tests.PlayerSettingsTests",
   "client.tests.VsCpuTests",
-  "client.tests.StadiumTests",
-  "client.tests.StadiumProgressTests",
 }
 
 -- run only when asked for by name, e.g. benchmarks that measure rather than assert

@@ -57,7 +57,7 @@ local REPLAY_VERSION = 3
 ---@field stageIndex integer?
 
 ---@alias ReplayGameModeName "timeattack" | "endless" | "vsSelf" | "training" | "challenge" | "VS" | "puzzle"
----| "vsCpu" | "vsCpu3d" | "stadium" | "stadium3d"
+---| "vsCpu" | "vsCpu3d"
 
 ---@class ReplayMetadata
 ---@field timestamp integer The time the replay got created as a system dependent timestamp; this denotes the start time
@@ -221,10 +221,6 @@ function ReplayV3:generatePath(pathSeparator)
     path = path .. sep .. "Vs CPU"
   elseif self.metadata.gameModeName == "vsCpu3d" then
     path = path .. sep .. "Vs CPU 3D"
-  elseif self.metadata.gameModeName == "stadium" then
-    path = path .. sep .. "Stadium"
-  elseif self.metadata.gameModeName == "stadium3d" then
-    path = path .. sep .. "Stadium 3D"
   elseif self.metadata.gameModeName == "VS" then
     local names = {}
     for i, player in ipairs(self.metadata.stacks) do

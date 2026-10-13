@@ -210,10 +210,6 @@ function ReplayBrowser:draw()
       modeText = loc("mm_1_vs_cpu")
     elseif selectedReplay.metadata.gameModeName == "vsCpu3d" then
       modeText = loc("mm_1_vs_cpu_3d")
-    elseif selectedReplay.metadata.gameModeName == "stadium" then
-      modeText = loc("mm_1_stadium")
-    elseif selectedReplay.metadata.gameModeName == "stadium3d" then
-      modeText = loc("mm_1_stadium_3d")
     else
       modeText = "Unknown"
     end
