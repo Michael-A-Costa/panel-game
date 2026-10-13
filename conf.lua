@@ -9,7 +9,8 @@ require("client.src.developer")
 function love.conf(t)
   -- Set the identity before loading the config file
   -- as we need it set to get to the correct load directory.
-  love.filesystem.setIdentity("Panel Attack")
+  -- the 3D playtest build saves on its own, so its 3D replays and settings stay out of the official client's folder
+  love.filesystem.setIdentity("Panel Attack 3D")
   readConfigFile(config)
 
   --t.identity = "" -- (already set above) -- The name of the save directory (string)
@@ -46,7 +47,7 @@ function love.conf(t)
   t.audio.mic = false                 -- Request and use microphone capabilities in Android (boolean)
   t.audio.mixwithsystem = false       -- Keep background music playing when opening LOVE (boolean, iOS and Android only)
 
-  t.window.title = "Panel Attack"          -- The window title (string)
+  t.window.title = "Panel Attack 3D (unofficial build)" -- The window title (string)
   t.window.icon = "client/assets/panels/__default/panel11.png"                      -- Filepath to an image to use as the window's icon (string)
   t.window.width = config.windowWidth            -- The window width (number)
   t.window.height = config.windowHeight          -- The window height (number)
