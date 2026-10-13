@@ -1,4 +1,4 @@
-local Scene = require("client.src.scenes.Scene")
+local LocalModeMenu = require("client.src.scenes.LocalModeMenu")
 local class = require("common.lib.class")
 local ui = require("client.src.ui")
 local GameModes = require("common.data.GameModes")
@@ -8,36 +8,27 @@ local StadiumProgress = require("client.src.StadiumProgress")
 local CharacterSelectStadium = require("client.src.scenes.CharacterSelectStadium")
 
 -- Scene picking the difficulty of a 1P Stadium run, 2D or 3D, and whether to resume its saved run
----@class StadiumMenu : Scene
----@field gameModeId GameModeID ONE_PLAYER_STADIUM or ONE_PLAYER_STADIUM_3D
+---@class StadiumMenu : LocalModeMenu
 ---@field dimension StadiumDimension
 ---@field stadiumProgress StadiumProgress
----@field menu Menu
 ---@field difficultyStepper Stepper
 ---@field resumeItem MenuItem? present while the picked difficulty has a saved run
 ---@field infoLabel Label what the picked difficulty needs to unlock or how often it was cleared
 local StadiumMenu = class(
   function(self, sceneParams)
-    self.backgroundImg = themes[config.theme].images.bg_main
-    self.keepMusic = true
-    self.gameModeId = sceneParams and sceneParams.gameModeId or GameModes.IDs.ONE_PLAYER_STADIUM
     self.dimension = Stadium.getDimension(GameModes.getPreset(self.gameModeId))
     self.stadiumProgress = sceneParams and sceneParams.progress or StadiumProgress.load()
     self.resumeItem = nil
     self:load(sceneParams)
   end,
-  Scene
+  LocalModeMenu
 )
 
 StadiumMenu.name = "StadiumMenu"
+StadiumMenu.DEFAULT_GAME_MODE_ID = GameModes.IDs.ONE_PLAYER_STADIUM
 
 -- the difficulty picked last, offered again
 local lastDifficulty = StadiumLadder.EASY
-
-local function exitMenu()
-  GAME.theme:playCancelSfx()
-  GAME.navigationStack:pop()
-end
 
 ---@param difficulty integer
 ---@return boolean
@@ -96,7 +87,7 @@ function StadiumMenu:load(sceneParams)
     ui.MenuItem.createButtonMenuItem("stadium_new_game", nil, nil, function()
       self:goToCharacterSelect(false)
     end),
-    ui.MenuItem.createButtonMenuItem("back", nil, nil, exitMenu)
+    ui.MenuItem.createButtonMenuItem("back", nil, nil, LocalModeMenu.exitMenu)
   }
 
   self.menu = ui.Menu.createCenteredMenu(menuItems)
@@ -143,17 +134,6 @@ function StadiumMenu:refresh()
   local labels, values = self:createDifficultyLabels()
   self.difficultyStepper:setLabels(labels, values, self.difficultyStepper.selectedIndex)
   self:refreshDifficulty()
-end
-
-function StadiumMenu:updateSelf(dt)
-  self.backgroundImg:update(dt)
-  self.menu:receiveInputs()
-  self.uiRoot:update(dt)
-end
-
-function StadiumMenu:draw()
-  self.backgroundImg:draw()
-  self.uiRoot:draw()
 end
 
 return StadiumMenu
