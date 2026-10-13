@@ -36,8 +36,30 @@ Everything not listed here works as in 2D: rows, rising, speed, stop time, score
 
 The original numbers the columns as the player sees them: view column 0 is at the left edge of the tower, 1-8 face the
 player and the cursor is on 4 and 5. Garbage placement, new shock panels and pop order are defined in view columns;
-`Stack:viewToBoardColumn` and `Stack:boardToViewColumn` convert. The board itself never shifts, unlike in the
-original, where the whole array shifts by a column per turn.
+`Stack:viewToBoardColumn` and `Stack:boardToViewColumn` convert. On a flat board view column v is simply column v + 1,
+so the same pop order and shock panel code serves both. The board itself never shifts, unlike in the original, where
+the whole array shifts by a column per turn.
+
+## Board topology
+
+Generic code doesn't ask whether a stack is a cylinder. It asks the board, which is `width` columns that either wrap
+(`Stack.wraps`, the last column neighbours the first) or not:
+
+| Method | Answers |
+|---|---|
+| `columnLeftOf`, `columnRightOf` | the neighbouring column, wrapping round the seam; nil past the edge of a flat board |
+| `areNeighbourColumns` | if two columns are next to each other, across the seam included |
+| `wrapColumn` | any column index brought back onto a wrapped board; unchanged on a flat one |
+| `getColumnOffset` | how far right of one column another is, as garbage `x_offset` counts it |
+| `getCursorSwapColumns` | the pair of columns the cursor swaps |
+| `getCursorColumnAfterMove` | where a horizontal input takes the cursor: clamped on a flat board, round the seam on a wrapped one |
+| `viewToBoardColumn`, `boardToViewColumn` | view columns, see above |
+
+Swapping, matching, garbage contact and garbage drops use only these, so they run the same code on both boards. What
+remains behind `stack.cylinder` are the 3D mode's own rules, each in one method: the tower turning under the cursor
+(`moveCursorHorizontally`), the hold repeat cadence (`inputRepeatInterval`), the countdown intro, garbage placement
+(`getGarbagePlacement`), the shock panel columns (`getShockPanelViewColumns`) and touch only raising
+(`canTouchSetCursor`). Their cylinder halves live in `common/engine/cylinder.lua`.
 
 ## Drawing
 
@@ -56,16 +78,16 @@ tower. Touch input only raises on the tower, as touching cells can't turn it.
 | What | Where |
 |---|---|
 | The `cylinder` stack setup flag | `common/data/MatchRules.lua` |
-| Turning, view columns, garbage placement | `common/engine/cylinder.lua` |
-| The input repeat, swaps across the seam, the countdown | `common/engine/Stack.lua` |
-| Matches and garbage contact across the seam, pop order | `common/engine/checkMatches.lua` |
+| Board topology, view columns, the input repeat, the countdown | `common/engine/Stack.lua` |
+| Turning, the intro turn, garbage and shock panel placement | `common/engine/cylinder.lua` |
+| Matches and garbage contact, pop order (one path for both boards) | `common/engine/checkMatches.lua` |
 | Garbage falling and landing across the seam | `common/engine/Panel.lua` |
 | New rows and shock panels | `common/engine/PanelGenerator.lua`, `common/engine/GeneratorSource.lua` |
 | The 3D game modes | `common/data/GameModes.lua` |
 | Drawing | `client/src/graphics/CylinderStackRenderer.lua`, used by `client/src/PlayerStack.lua` |
-| Tests | `common/tests/engine/Cylinder*Tests.lua`, `client/tests/CylinderStackRendererTests.lua` |
+| Tests | `common/tests/engine/StackTopologyTests.lua`, `common/tests/engine/Cylinder*Tests.lua`, `client/tests/CylinderStackRendererTests.lua` |
 
-The flag is part of the match rules, so replays rebuild the tower. Every rule is behind `stack.cylinder` and 2D stacks
-behave and generate exactly as before; `CylinderGeneratorTests` pins the 2D generator output.
+The flag is part of the match rules, so replays rebuild the tower. 2D stacks are 6 wide and don't wrap, and behave and
+generate exactly as before; `CylinderGeneratorTests` pins the 2D generator output.
 
 Not done yet: online play, a CPU opponent, 3D puzzles, and replay browser labels for the 3D modes.
