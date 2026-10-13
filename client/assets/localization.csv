@@ -687,3 +687,27 @@ mm_1_vs_cpu,,1P vs CPU,1J contre CPU,1J vs CPU,1P VS CPU,1J vs CPU,1P gegen CPU,
 mm_1_vs_cpu_3d,,1P vs CPU 3D,1J contre CPU 3D,1J vs CPU 3D,1P VS CPU 3D,1J vs CPU 3D,1P gegen CPU 3D,1P vs CPU 3D,1P สู้กับ CPU 3D
 cpu_level,,CPU level,Niveau CPU,Nível da CPU,CPUレベル,Nivel de CPU,CPU-Stufe,Livello CPU,ระดับ CPU
 cpu_name,Name of the computer opponent; %1 is its level,CPU Lv%1,CPU Lv%1,CPU Lv%1,CPU Lv%1,CPU Lv%1,CPU Lv%1,CPU Lv%1,CPU Lv%1
+mm_1_stadium,,1P Stadium,1J Stade,1J Estádio,1P スタジアム,1J Estadio,1P Stadion,1P Stadio,1P สเตเดียม
+mm_1_stadium_3d,,1P Stadium 3D,1J Stade 3D,1J Estádio 3D,1P スタジアム 3D,1J Estadio 3D,1P Stadion 3D,1P Stadio 3D,1P สเตเดียม 3D
+stadium_difficulty_1,Stadium difficulty,Easy,Facile,Fácil,EASY,Fácil,Leicht,Facile,ง่าย
+stadium_difficulty_2,Stadium difficulty,Normal,Normal,Normal,NORMAL,Normal,Normal,Normale,ปานกลาง
+stadium_difficulty_3,Stadium difficulty,Hard,Difficile,Difícil,HARD,Difícil,Schwer,Difficile,ยาก
+stadium_difficulty_4,Stadium difficulty,Very Hard,Très difficile,Muito difícil,VERY HARD,Muy difícil,Sehr schwer,Molto difficile,ยากมาก
+stadium_difficulty_5,Stadium difficulty,Super Hard,Extrêmement difficile,Super difícil,SUPER HARD,Súper difícil,Superschwer,Super difficile,ยากสุดๆ
+stadium_locked,A Stadium difficulty not unlocked yet; %1 is its name,%1 (locked),%1 (verrouillé),%1 (bloqueado),%1（ロック中）,%1 (bloqueado),%1 (gesperrt),%1 (bloccato),%1 (ล็อก)
+stadium_unlock_hint,%1 is the Stadium difficulty to clear,Clear %1 to unlock,Terminez %1 pour débloquer,Conclua %1 para desbloquear,%1をクリアで解放,Supera %1 para desbloquear,Schaffe %1 zum Freischalten,Completa %1 per sbloccare,ผ่าน %1 เพื่อปลดล็อก
+stadium_record,%1 is how often the Stadium difficulty was cleared; %2 its fewest continues,Cleared %1x - fewest continues: %2,Terminé %1 fois - moins de continues : %2,Concluído %1x - menos continues: %2,クリア %1回 - 最少コンティニュー: %2,Superado %1 veces - menos continuaciones: %2,%1x geschafft - wenigste Fortsetzungen: %2,Completato %1 volte - meno continue: %2,ผ่าน %1 ครั้ง - คอนทินิวน้อยสุด: %2
+stadium_new_game,,New game,Nouvelle partie,Novo jogo,はじめから,Nueva partida,Neues Spiel,Nuova partita,เกมใหม่
+stadium_resume,%1 is the next Stadium stage; %2 the stage count,Resume (stage %1/%2),Reprendre (étape %1/%2),Continuar (fase %1/%2),つづきから（ステージ %1/%2）,Continuar (fase %1/%2),Fortsetzen (Stufe %1/%2),Riprendi (livello %1/%2),เล่นต่อ (ด่าน %1/%2)
+stadium_stage,%1 is the Stadium stage; %2 the stage count,Stage %1/%2,Étape %1/%2,Fase %1/%2,ステージ %1/%2,Fase %1/%2,Stufe %1/%2,Livello %1/%2,ด่าน %1/%2
+stadium_continues,,Continues,Continues,Continues,コンティニュー,Continuaciones,Fortsetzungen,Continue,คอนทินิว
+stadium_time,,Time,Temps,Tempo,タイム,Tiempo,Zeit,Tempo,เวลา
+stadium_cleared,%1 is the Stadium difficulty,%1 cleared!,%1 terminé !,%1 concluído!,%1 クリア！,¡%1 superado!,%1 geschafft!,%1 completato!,ผ่าน %1 แล้ว!
+stadium_unlocked,%1 is the Stadium difficulty,New difficulty unlocked: %1,Nouvelle difficulté débloquée : %1,Nova dificuldade desbloqueada: %1,新しい難易度が解放されました: %1,Nueva dificultad desbloqueada: %1,Neue Schwierigkeit freigeschaltet: %1,Nuova difficoltà sbloccata: %1,ปลดล็อกระดับความยากใหม่: %1
+stadium_title_rival,Stadium opponent title,Rival,Rival,Rival,ライバル,Rival,Rivale,Rivale,คู่แข่ง
+stadium_title_gym,Stadium opponent title; %1 is the gym's number,Gym %1,Arène %1,Ginásio %1,ジム %1,Gimnasio %1,Arena %1,Palestra %1,ยิม %1
+stadium_title_wanderer,Stadium opponent title,Wanderer,Vagabond,Andarilho,たびびと,Trotamundos,Wanderer,Viandante,นักเดินทาง
+stadium_title_rogues,Stadium opponent title,Rogues,Voyous,Bandidos,わるもの,Pícaros,Schurken,Furfanti,พวกตัวร้าย
+stadium_title_elite,Stadium opponent title; %1 is the elite's number,Elite %1,Élite %1,Elite %1,エリート %1,Élite %1,Elite %1,Élite %1,อีลีท %1
+stadium_title_champion,Stadium opponent title,Champion,Champion,Campeão,チャンピオン,Campeón,Champion,Campione,แชมเปี้ยน
+stadium_title_boss,Stadium opponent title,Final Boss,Boss final,Chefe final,ラスボス,Jefe final,Endgegner,Boss finale,บอสสุดท้าย

@@ -12,6 +12,7 @@ local CharacterSelectVsSelf = require("client.src.scenes.CharacterSelectVsSelf")
 local TrainingMenu = require("client.src.scenes.TrainingMenu")
 local ChallengeModeMenu = require("client.src.scenes.ChallengeModeMenu")
 local VsCpuMenu = require("client.src.scenes.VsCpuMenu")
+local StadiumMenu = require("client.src.scenes.StadiumMenu")
 local Lobby = require("client.src.scenes.Lobby")
 local LocalGameModeSelectionScene = require("client.src.scenes.LocalGameModeSelectionScene")
 local ReplayBrowser = require("client.src.scenes.ReplayBrowser")
@@ -108,6 +109,12 @@ function MainMenu:createMainMenu()
     end),
     ui.MenuItem.createButtonMenuItem("mm_1_vs_cpu_3d", nil, nil, function()
       switchToScene(VsCpuMenu({gameModeId = GameModes.IDs.ONE_PLAYER_VS_CPU_3D}))
+    end),
+    ui.MenuItem.createButtonMenuItem("mm_1_stadium", nil, nil, function()
+      switchToScene(StadiumMenu())
+    end),
+    ui.MenuItem.createButtonMenuItem("mm_1_stadium_3d", nil, nil, function()
+      switchToScene(StadiumMenu({gameModeId = GameModes.IDs.ONE_PLAYER_STADIUM_3D}))
     end),
     ui.MenuItem.createButtonMenuItem("mm_2_vs_online", {""}, nil, function()
       switchToScene(Lobby({serverIp = "panelattack.com"}))
