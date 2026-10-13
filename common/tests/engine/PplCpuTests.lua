@@ -791,6 +791,51 @@ end
 
 raiseIsHeldUntilTheRaiseEnds()
 
+local function cancelledRaiseDropsThePlan()
+  local match, stack = createMatch({allowManualRaise = true})
+  setBoard(stack, {{1, 1, 1, 4, 5, 6}})
+  -- the match flashes, so the field is busy and the raise can't start
+  idleFrames(match, stack, 2)
+  local cpu = newCpu(stack)
+  local brain = cpu.brain
+  local displacement = stack.displacement
+
+  queueMoves(brain, {7, 1})
+  brain:addCommand(9)
+  brain.delay = 0
+  local inputs = executeFrames(match, stack, cpu, 10)
+  expect(inputs[1], RAISE, "the CPU presses raise")
+  expect(stack.displacement, displacement, "the stack did not raise")
+  expect(brain.totalCommand, 0, "a cancelled raise drops the plan")
+  assert(not brain:hasMoves(), "and the moves")
+end
+
+cancelledRaiseDropsThePlan()
+
+local function noRaiseOnAToppedOutStack()
+  local match, stack = createMatch({allowManualRaise = true})
+  local rows = {}
+  for row = 1, stack.height do
+    rows[row] = row % 2 == 0 and {1, 2, 3, 4, 5, 1} or {3, 4, 5, 1, 2, 3}
+  end
+  setBoard(stack, rows)
+  idleFrames(match, stack, 2)
+  assert(stack:isToppedOut(), "the board reaches the top")
+  local cpu = newCpu(stack)
+  local brain = cpu.brain
+
+  queueMoves(brain, {7})
+  brain.delay = 0
+  local inputs = executeFrames(match, stack, cpu, 10)
+  for i, input in ipairs(inputs) do
+    expect(input, IDLE, "frame " .. i .. ": a manual raise would end PA's game at once")
+  end
+  expect(stack:game_ended(), false, "the stack is still alive")
+  assert(not brain:hasMoves(), "the raise is refused and the plan dropped")
+end
+
+noRaiseOnAToppedOutStack()
+
 ---------------------------------------------------------------------------------------------------------------------
 -- command expansion (AI-SPEC §1.6)
 
