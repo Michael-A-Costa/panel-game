@@ -29,7 +29,7 @@ local function menuPathTest()
   local cpu = battleRoom.players[2]
   ---@cast cpu CpuPlayer
   assert(cpu.isCpu and cpu.isLocal and not cpu.human, "the second player is a local CPU")
-  expect(cpu.settings.cpuName, "SimpleCpu", "the placeholder CPU plays until the PPL CPU lands")
+  expect(cpu.settings.cpuName, "PplCpu", "the PPL CPU plays")
   expect(cpu.settings.cpuOptions.level, 7, "the CPU plays at the picked level")
   expect(cpu.settings.wantsReady, true, "the CPU is always ready")
   assert(battleRoom.mode.matchRules.stackSetupModifications.cylinder, "both stacks are 3D")
@@ -70,7 +70,7 @@ local function clientMatchTest(gameModeId)
   battleRoom.panelSource = GeneratorSource(1234, true)
   for i, level in ipairs({5, 9}) do
     local cpu = CpuPlayer("cpu " .. i)
-    cpu:setCpu("SimpleCpu", {level = level})
+    cpu:setCpu("PplCpu", {level = level})
     cpu:setCharacter(characterId)
     cpu:setLevel(6)
     cpu:setLevelData(LevelPresets.getModern(6))
@@ -97,7 +97,7 @@ local function clientMatchTest(gameModeId)
     local metadata = replay.metadata.stacks[i]
     ---@cast metadata StackMetadata
     expect(metadata.name, player.name, "the replay names the CPU")
-    expect(metadata.cpu.name, "SimpleCpu", "the replay records which CPU played")
+    expect(metadata.cpu.name, "PplCpu", "the replay records which CPU played")
     expect(metadata.cpu.options.level, player.settings.cpuOptions.level, "and at which level")
     expect(metadata.cpu.options.seed, ComputerPlayer.deriveSeed(match.panelSource.seed, i), "with the match's seed")
   end

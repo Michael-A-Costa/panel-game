@@ -10,7 +10,7 @@ local ComputerPlayer = require("common.engine.computerPlayers.ComputerPlayer")
 
 ---@class StadiumStage
 ---@field index integer the stage's place in its difficulty's ladder
----@field cpuOptions CpuOptions the PPL CPU preset, Stadium difficulty and stage; ClientMatch adds the seed
+---@field cpuOptions CpuStrength the PPL CPU preset, Stadium difficulty and stage; ClientMatch adds the seed
 ---@field level integer the Panel Attack modern level both stacks play on
 ---@field role StadiumRole?
 ---@field titleKey string localization key of the stage's title

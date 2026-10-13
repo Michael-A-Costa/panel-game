@@ -24,6 +24,7 @@ local ComputerPlayer = require("common.engine.computerPlayers.ComputerPlayer")
 ---@class ClientMatch
 ---@field players (Player|ChallengeModePlayer|CpuPlayer)[]
 ---@field stacks (PlayerStack|ChallengeModePlayerStack)[]
+---@field cpus table<integer, CpuImplementation> the computer players by stack index, for the stacks CPUs play
 ---@field engine Match
 ---@field matchRules MatchRules
 ---@field replay ReplayV3
@@ -57,6 +58,8 @@ function(self, players, ranked)
 
   self.spectators = {}
   self.spectatorString = ""
+  -- filled for the stacks CPUs play when the match is set up from a game mode; replays need none
+  self.cpus = {}
 
   Signal.turnIntoEmitter(self)
   self:createSignal("countdownEnded")
@@ -171,7 +174,7 @@ function ClientMatch:setupFromGameMode()
       ---@cast engineStack Stack
       -- seeded from the match so the same match plays out the same way, which tests and debugging rely on
       local matchSeed = self.panelSource.seed or 0
-      player:createComputerPlayer(engineStack, ComputerPlayer.deriveSeed(matchSeed, i))
+      self.cpus[i] = player:createComputerPlayer(engineStack, ComputerPlayer.deriveSeed(matchSeed, i))
     end
   end
 
@@ -218,15 +221,14 @@ function ClientMatch:run()
     return
   end
 
-  for _, stack in ipairs(self.stacks) do
+  for i, stack in ipairs(self.stacks) do
     if stack.is_local and not stack:game_ended() then
-      local player = stack.player
-      if player and player.isCpu then
-        ---@cast player CpuPlayer
+      local cpu = self.cpus[i]
+      if cpu then
         local engine = stack.engine
         -- like a human the CPU decides each frame from the state the previous one left, and never twice for a frame
         if #engine.confirmedInput == engine.clock then
-          engine:receiveConfirmedInput(player.cpu:getInput())
+          engine:receiveConfirmedInput(cpu:getInput())
         end
       elseif stack.send_controls then
         ---@cast stack PlayerStack

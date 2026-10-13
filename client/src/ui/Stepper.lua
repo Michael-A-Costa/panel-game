@@ -55,6 +55,10 @@ local function setState(self, i)
 end
 
 -- UIElement representing a scrolling list of options
+---@class Stepper : UiElement
+---@field value any the value of the selected option
+---@field selectedIndex integer
+---@overload fun(options: table): Stepper
 local Stepper = class(
   function(self, options)
     self.onChange = options.onChange or function() end

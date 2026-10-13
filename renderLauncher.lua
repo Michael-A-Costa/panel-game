@@ -74,7 +74,7 @@ local ClientMatch = require("client.src.ClientMatch")
 local Player = require("client.src.Player")
 local CpuPlayer = require("client.src.CpuPlayer")
 local StadiumLadder = require("common.data.StadiumLadder")
-local Scores = require("client.src.scores")
+local StadiumProgress = require("client.src.StadiumProgress")
 local Stadium = require("client.src.Stadium")
 
 local IDLE = KeyDataEncoding.base64encode[1]
@@ -142,8 +142,8 @@ end
 local function createCpuMatch(gameModeId, cpuLevels, frames)
   local players = {}
   for i, cpuLevel in ipairs(cpuLevels) do
-    local player = CpuPlayer(loc("cpu_name", cpuLevel))
-    player:setCpu("SimpleCpu", {level = cpuLevel})
+    local player = CpuPlayer(loc("cpu_name", tostring(cpuLevel)))
+    player:setCpu("PplCpu", {level = cpuLevel})
     player:setLevel(5)
     player:setLevelData(LevelPresets.getModern(5))
     player.playerNumber = i
@@ -160,15 +160,25 @@ local function createCpuMatch(gameModeId, cpuLevels, frames)
   return scene
 end
 
+-- Stadium progress for the harness, which never touches the player's save
+---@return StadiumProgress
+local function createUnsavedProgress()
+  local progress = StadiumProgress()
+  progress.saveToFile = function() end
+  return progress
+end
+
 -- a Stadium match as the game runs it, the PPL CPU against an idle player, run for a while to show the HUD
 ---@param gameModeId GameModeID
 ---@param frames integer
+---@param keepCard boolean? leave the pre-match card up instead of starting the match
 ---@return GameBase scene
-local function createStadiumMatch(gameModeId, frames)
-  local scores = Scores()
-  -- the harness never touches the player's save
-  scores.saveToFile = function() end
-  local stadium = Stadium.create(StadiumLadder.HARD, gameModeId, {scores = scores})
+local function createStadiumMatch(gameModeId, frames, keepCard)
+  -- a fresh save has no name yet; the game asks for one on the first start
+  if GAME.localPlayer.name == "" then
+    GAME.localPlayer.name = "Player"
+  end
+  local stadium = Stadium.create(StadiumLadder.HARD, gameModeId, {progress = createUnsavedProgress()})
   stadium:setStage(4)
   stadium.continues = 2
   stadium.panelSource = GeneratorSource(4242, true)
@@ -181,6 +191,9 @@ local function createStadiumMatch(gameModeId, frames)
   match:start()
   local scene = require("client.src.scenes.Game1pStadium")({match = match})
   scene:load()
+  if not keepCard then
+    scene:closeCard()
+  end
   for _ = 1, frames do
     match:run()
   end
@@ -494,6 +507,25 @@ local shots = {
       return createStadiumMatch(GameModes.IDs.ONE_PLAYER_STADIUM_3D, 900)
     end
   },
+  {
+    name = "stadium_card.png",
+    prepare = function()
+      return createStadiumMatch(GameModes.IDs.ONE_PLAYER_STADIUM, 0, true)
+    end
+  },
+  {
+    -- a first Hard clear, which opens Very Hard
+    name = "stadium_recap.png",
+    prepare = function()
+      local stadium = Stadium.create(StadiumLadder.HARD, GameModes.IDs.ONE_PLAYER_STADIUM, {progress = createUnsavedProgress()})
+      GAME.battleRoom = stadium
+      stadium.continues = 3
+      while not stadium.complete do
+        stadium:recordStageResult({GAME.localPlayer}, 3600)
+      end
+      return require("client.src.scenes.StadiumRecapScene")({stadium = stadium})
+    end
+  },
   -- the live_ shots get everything from the engine's 3D rules and scripted inputs; nothing is placed by hand
   -- beyond a starting board
   {
@@ -675,7 +707,12 @@ function love.draw()
   end
   love.graphics.setCanvas()
   savePng(love.graphics.readbackTexture(canvas), shot.name)
-  currentScene.match:deinit()
+  if currentScene.match then
+    currentScene.match:deinit()
+  end
+  if GAME.battleRoom then
+    GAME.battleRoom:shutdown()
+  end
 end
 
 function love.errorhandler(msg)

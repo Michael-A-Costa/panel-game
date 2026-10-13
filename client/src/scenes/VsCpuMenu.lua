@@ -1,4 +1,4 @@
-local Scene = require("client.src.scenes.Scene")
+local LocalModeMenu = require("client.src.scenes.LocalModeMenu")
 local class = require("common.lib.class")
 local ui = require("client.src.ui")
 local GameModes = require("common.data.GameModes")
@@ -9,20 +9,16 @@ local CharacterSelectVsCpu = require("client.src.scenes.CharacterSelectVsCpu")
 require("client.src.BattleRoom")
 
 -- Scene picking the CPU's level for a 1P vs CPU game, 2D or 3D, before the character select
----@class VsCpuMenu : Scene
----@field gameModeId GameModeID
----@field menu Menu
+---@class VsCpuMenu : LocalModeMenu
 local VsCpuMenu = class(
   function(self, sceneParams)
-    self.backgroundImg = themes[config.theme].images.bg_main
-    self.keepMusic = true
-    self.gameModeId = sceneParams and sceneParams.gameModeId or GameModes.IDs.ONE_PLAYER_VS_CPU
     self:load(sceneParams)
   end,
-  Scene
+  LocalModeMenu
 )
 
 VsCpuMenu.name = "VsCpuMenu"
+VsCpuMenu.DEFAULT_GAME_MODE_ID = GameModes.IDs.ONE_PLAYER_VS_CPU
 
 -- the level picked last, offered again for the next game
 local lastCpuLevel = 1
@@ -34,17 +30,12 @@ local lastCpuLevel = 1
 function VsCpuMenu.createBattleRoom(gameModeId, cpuLevel)
   local battleRoom = BattleRoom.createLocalFromGameMode(GameModes.getPreset(gameModeId), GameBase)
   if battleRoom then
-    local cpuPlayer = CpuPlayer(loc("cpu_name", cpuLevel))
-    cpuPlayer:setCpu("SimpleCpu", {level = cpuLevel})
+    local cpuPlayer = CpuPlayer(loc("cpu_name", tostring(cpuLevel)))
+    cpuPlayer:setCpu("PplCpu", {level = cpuLevel})
     cpuPlayer:copyLevelFrom(GAME.localPlayer)
     battleRoom:addPlayer(cpuPlayer)
   end
   return battleRoom
-end
-
-local function exitMenu()
-  GAME.theme:playCancelSfx()
-  GAME.navigationStack:pop()
 end
 
 ---@param cpuLevel integer
@@ -81,22 +72,11 @@ function VsCpuMenu:load(sceneParams)
     ui.MenuItem.createButtonMenuItem("go_", nil, nil, function()
       self:goToCharacterSelect(levelStepper.value)
     end),
-    ui.MenuItem.createButtonMenuItem("back", nil, nil, exitMenu)
+    ui.MenuItem.createButtonMenuItem("back", nil, nil, LocalModeMenu.exitMenu)
   }
 
   self.menu = ui.Menu.createCenteredMenu(menuItems)
   self.uiRoot:addChild(self.menu)
-end
-
-function VsCpuMenu:updateSelf(dt)
-  self.backgroundImg:update(dt)
-  self.menu:receiveInputs()
-  self.uiRoot:update(dt)
-end
-
-function VsCpuMenu:draw()
-  self.backgroundImg:draw()
-  self.uiRoot:draw()
 end
 
 return VsCpuMenu

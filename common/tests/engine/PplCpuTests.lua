@@ -35,8 +35,8 @@ local function expect(actual, expected, what)
   assert(actual == expected, what .. ": expected " .. tostring(expected) .. ", got " .. tostring(actual))
 end
 
----@param actual integer[]
----@param expected integer[]
+---@param actual (integer | string)[] queued numbers or inputs
+---@param expected (integer | string)[]
 ---@param what string
 local function expectList(actual, expected, what)
   local same = #actual == #expected
