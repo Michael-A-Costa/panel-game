@@ -10,8 +10,11 @@ Specs (read before working):
 - [STADIUM-SPEC.md](STADIUM-SPEC.md): the ladder, per-stage parameters, flow, and how it maps onto Panel Attack.
 - [INTEGRATION.md](INTEGRATION.md): where a CPU hooks into Panel Attack, the mode recipe, test approach, prior art.
 
-Branch `stadium` (off `3d-mode`), pushed to `origin` (the public fork). Agent work happens on sub-branches in
-`/Users/mcosta/worktrees/panel-attack-3d-<name>` and merges into `stadium`.
+Branch `cpu-ai` (off `3d-mode`, renamed from `stadium`), pushed to `origin` (the public fork). Agent work happened on
+sub-branches in `/Users/mcosta/worktrees/panel-attack-3d-<name>` merged into it.
+
+**Goal closed 2026-10-13 on the CPU AI.** The PPL CPU and 1P vs CPU are done; the Stadium mode that was built along
+the way stays in the branch as a first draft, and the rest of Stadium is left for another time.
 
 ## Status
 
@@ -19,17 +22,23 @@ Branch `stadium` (off `3d-mode`), pushed to `origin` (the public fork). Agent wo
 - [x] **1. CPU plumbing + 1P vs CPU**: a CPU drives a normal `Stack` through `receiveConfirmedInput`; main-menu
   "1P vs CPU" (2D and 3D) with CPU level 1–10; tests for determinism, replay round trip, read-only.
 - [x] **2a. PPL CPU core**: RNG, board adapter, brain/queues, helpers, executor, `UpdateAI` cascade with planner slots.
-- [~] **2b. PPL CPU planners**: chains (Vert1–5, Hori1–5), garbage and volume, combos and fallback.
-- [~] **3. Stadium mode**: ladder room, difficulty menu, game scene, recap, saved progress, unlocks, Stadium 3D.
-- [~] **4. Tuning and polish**: 1P vs CPU on PplCpu, name bars, pre-match card and result line, unlock message,
-  progress in its own file, type check clean, CPU frame cost measured (branch `stadium-polish`); still open: the
-  CPU-vs-CPU ladder check (separate agent), endings/credits gate, Michael's playtest.
+- [x] **2b. PPL CPU planners**: chains (Vert1–5, Hori1–5), garbage and volume, combos and fallback.
+- [~] **3. Stadium mode** (draft, deferred): ladder room, difficulty menu, game scene, pre-match card, recap, progress
+  in `stadium.json`, unlocks, Stadium 3D. Works and is tested, but nobody has played it.
+- [x] **4. CPU tuning and polish**: 1P vs CPU on PplCpu, SimpleCpu removed, type check back to the 11 pre-existing
+  diagnostics, CPU cost ~0.015 ms per frame, CPU-vs-CPU ladder check (BALANCE.md) with two raise fixes.
 
-## Next up
+## Next up (deferred)
 
-1. Merge `stadium-polish` and the CPU-vs-CPU balance branch into `stadium`.
-2. The 3D CPU tops out early at high levels (see the log); look at it with the balance numbers.
-3. Endings/credits gate per difficulty, then Michael plays it.
+1. Michael plays 1P vs CPU (2D and 3D) and says how it feels.
+2. CPU review leftovers: `volumeCheck` plans at row −3 on an empty bottom row (`PplGarbage.lua` ~493, add
+   `if row < 0` + test); on the tower `shortestDistance` treats a real panel at view column −1 as "none"
+   (`PplHelpers.lua` ~297, `PplPlanner.lua` ~268); duplicated scans/constants across PplChains/PplCombos/PplGarbage
+   (sort-by-colour, possibleRow retry, raise-under-garbage, `SLIDE_IN`, `SORT_USED`); unreachable checks in
+   `PplGarbage.lua` ~52, ~292, ~296.
+3. Balance decisions (BALANCE.md): Easy/Normal get weaker when they gain the raise bit (PPL's design); vs-CPU levels
+   8 and 9 are out of order (PPL's DemoCPU table); Super Hard mirror matches can stall past 5 minutes.
+4. Stadium, later: endings/credits gate, PPL speed schedule, Stadium 3D tuning, a playtest.
 
 ## Decisions taken (override any of them)
 
@@ -148,3 +157,10 @@ INTEGRATION.md §A4 recipe + STADIUM-SPEC §3 flow:
   Nothing near the 0.2 ms mean bar. Seen on the way: the 3D CPU at level 8 to 10 tops out within 10 to 15 s on
   level 5 to 10 stacks (the 3D benchmark needed 6 games for 3000 frames, 2D one), and lost to level 3 in the render
   shot (cause not looked into). Left for the balance work.
+- 2026-10-13: All planners merged (chains, garbage, combos): in 2D endless the CPU clears 288 panels in 3 minutes
+  without topping out and builds ×3 chains. Stadium mode merged as a draft. Polish: 1P vs CPU on PplCpu, SimpleCpu
+  removed, Stadium progress moved to `stadium.json` so `scores.json` stays at version 5 (upstream shares the save
+  folder), stable opponent cast, CPUs owned by the match. Balance (BALANCE.md, `balanceLauncher.lua`, PplLadderTests):
+  strength rises with stage and difficulty (H15 beats H1 100-0, S16 beats S1 90-5 over 100 seeds); fixed a raise on a
+  topped-out stack (instant loss in PA, ignored in PPL) and the tower's raise check using only the 6 visible columns
+  (levels 8–10 topped out in 10–15 s; now last 5 minutes alone). Goal closed on the CPU AI; branch renamed `cpu-ai`.
