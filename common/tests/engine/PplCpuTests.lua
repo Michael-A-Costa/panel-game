@@ -967,9 +967,9 @@ local GAME_FRAMES = 3 * 60 * 60
 ---@field mutationCheckEvery integer? compare rollback copies around getInput on every n-th frame
 ---@field measureAllocationAfter integer? count memory allocated by getInput after this many frames
 
--- Plays until three minutes have passed or the stack topped out. Allocation is measured with the JIT off and its traces
--- flushed: compiling traces allocates too (mostly for the engine's own code), and so can leaving a trace an earlier
--- test file compiled, which is not garbage the CPU makes every frame.
+-- Plays until three minutes have passed or the stack topped out. Allocation is measured with the JIT off and its
+-- traces flushed: compiling traces allocates too (mostly for the engine's own code), and so does a side exit of an
+-- older trace rebuilding the tables it sank. Neither is garbage the CPU makes every frame.
 ---@param match Match
 ---@param stack Stack
 ---@param cpu PplCpu

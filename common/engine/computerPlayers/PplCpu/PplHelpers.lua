@@ -292,15 +292,19 @@ function PplHelpers.shortestDistance(board, brain, from, to)
   if board:type(row, to) == blockType then
     return to
   end
+  -- On the tower the window turns with the cursor, so an earlier slide of the same plan can carry the planned panel
+  -- out of 0..5: search out to it. In 2D from is always inside the window.
+  local first = math.min(brain.l, from)
+  local last = math.max(brain.r, from)
   local left = -1
-  for column = to - 1, brain.l, -1 do
+  for column = to - 1, first, -1 do
     if board:isIdle(row, column, blockType) then
       left = column
       break
     end
   end
   local right = -1
-  for column = to + 1, brain.r do
+  for column = to + 1, last do
     if board:isIdle(row, column, blockType) then
       right = column
       break
