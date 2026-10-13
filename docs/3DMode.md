@@ -5,8 +5,9 @@ under the cursor instead of the cursor moving sideways. The rules below follow t
 [puzzleleague64 decompilation](https://github.com/AngheloAlf/puzzleleague64); code comments name the file a rule
 comes from (e.g. `attack3d.c`) where it explains a number.
 
-It is offered as Endless 3D, Time Attack 3D and Training 3D in the main menu and as 2P VS 3D in the local 2P menu,
-offline only.
+It is offered as Endless 3D, Time Attack 3D, Training 3D and Challenge Mode 3D in the main menu and as 2P VS 3D in
+the local 2P menu, offline only. In Challenge Mode 3D only the player's stack is a tower; the challengers are the same
+attack engines and health bars as in 2D.
 
 ## Rules
 
@@ -85,7 +86,7 @@ tower. Touch input only raises on the tower, as touching cells can't turn it.
 | New rows and shock panels | `common/engine/PanelGenerator.lua`, `common/engine/GeneratorSource.lua` |
 | The 3D game modes | `common/data/GameModes.lua` |
 | Drawing | `client/src/graphics/CylinderStackRenderer.lua`, used by `client/src/PlayerStack.lua` |
-| Tests | `common/tests/engine/StackTopologyTests.lua`, `common/tests/engine/Cylinder*Tests.lua`, `client/tests/CylinderStackRendererTests.lua` |
+| Tests | `common/tests/engine/StackTopologyTests.lua`, `common/tests/engine/Cylinder*Tests.lua`, `client/tests/CylinderStackRendererTests.lua`, `client/tests/ChallengeMode3DTests.lua` |
 
 The flag is part of the match rules, so replays rebuild the tower. 2D stacks are 6 wide and don't wrap, and behave and
 generate exactly as before; `CylinderGeneratorTests` pins the 2D generator output.

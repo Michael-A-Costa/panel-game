@@ -96,6 +96,9 @@ function MainMenu:createMainMenu()
     ui.MenuItem.createButtonMenuItem("mm_1_challenge_mode", nil, nil, function()
       switchToScene(ChallengeModeMenu())
     end),
+    ui.MenuItem.createButtonMenuItem("mm_1_challenge_mode_3d", nil, nil, function()
+      switchToScene(ChallengeModeMenu({gameModeId = GameModes.IDs.ONE_PLAYER_CHALLENGE_3D}))
+    end),
     ui.MenuItem.createButtonMenuItem("mm_2_vs_online", {""}, nil, function()
       switchToScene(Lobby({serverIp = "panelattack.com"}))
     end),
