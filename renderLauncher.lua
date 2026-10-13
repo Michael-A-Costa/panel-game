@@ -143,7 +143,7 @@ local function createCpuMatch(gameModeId, cpuLevels, frames)
   local players = {}
   for i, cpuLevel in ipairs(cpuLevels) do
     local player = CpuPlayer(loc("cpu_name", cpuLevel))
-    player:setCpu("SimpleCpu", {level = cpuLevel})
+    player:setCpu("PplCpu", {level = cpuLevel})
     player:setLevel(5)
     player:setLevelData(LevelPresets.getModern(5))
     player.playerNumber = i

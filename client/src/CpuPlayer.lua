@@ -2,11 +2,10 @@ local class = require("common.lib.class")
 local consts = require("common.engine.consts")
 local Player = require("client.src.Player")
 local ComputerPlayer = require("common.engine.computerPlayers.ComputerPlayer")
--- each registers itself with ComputerPlayer
-require("common.engine.computerPlayers.SimpleCpu.SimpleCpu")
+-- registers itself with ComputerPlayer
 require("common.engine.computerPlayers.PplCpu.PplCpu")
 
-local DEFAULT_CPU = "SimpleCpu"
+local DEFAULT_CPU = "PplCpu"
 
 ---@class CpuPlayerSettings : PlayerSettings
 ---@field cpuName string the registered ComputerPlayer implementation that plays

@@ -11,8 +11,8 @@ inputs and plays back without any CPU code.
 `computerPlayers` and registers itself when it is required:
 
 ```lua
-ComputerPlayer.register("SimpleCpu", SimpleCpu)
-local cpu = ComputerPlayer.create("SimpleCpu", stack, {seed = 1234, level = 5})
+ComputerPlayer.register("PplCpu", PplCpu)
+local cpu = ComputerPlayer.create("PplCpu", stack, {seed = 1234, level = 5})
 ```
 
 # Interface
@@ -62,5 +62,5 @@ e.g. swap + down is `16 + 4 + 1 = 21` → `base64encode[21]`.
   turn are dropped.
 - No short-lived tables in `getInput`: preallocate what you need, as for any code in the gameplay loop.
 
-`common/tests/engine/ComputerPlayerTests.lua` checks these rules for `SimpleCpu`; run its checks against any new
-implementation too.
+`common/tests/engine/ComputerPlayerTests.lua` checks these rules for `PplCpu`, the port of Pokémon Puzzle League's CPU
+(`PplCpu/`, `docs/stadium/AI-SPEC.md`); run its checks against any new implementation too.

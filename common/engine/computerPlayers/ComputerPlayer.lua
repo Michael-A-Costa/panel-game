@@ -27,7 +27,7 @@ local DEMO_LEVEL_PRESETS = {
 ---@type table<string, CpuImplementationClass>
 local implementations = {}
 
----@param name string unique name the CPU is created by, e.g. "SimpleCpu"
+---@param name string unique name the CPU is created by, e.g. "PplCpu"
 ---@param implClass CpuImplementationClass constructor taking (stack, options)
 function ComputerPlayer.register(name, implClass)
   assert(type(name) == "string" and name ~= "", "a CPU implementation needs a name")

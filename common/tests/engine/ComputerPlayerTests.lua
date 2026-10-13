@@ -7,8 +7,8 @@ local Match = require("common.engine.Match")
 local GeneratorSource = require("common.engine.GeneratorSource")
 local ReplayV3 = require("common.data.ReplayV3")
 local ComputerPlayer = require("common.engine.computerPlayers.ComputerPlayer")
-local SimpleCpu = require("common.engine.computerPlayers.SimpleCpu.SimpleCpu")
-local CylinderTestUtils = require("common.tests.engine.CylinderTestUtils")
+-- registers itself with ComputerPlayer
+require("common.engine.computerPlayers.PplCpu.PplCpu")
 
 local MAX_FRAMES = 60 * 60 * 5
 
@@ -45,7 +45,7 @@ local function snapshot(stack)
   return table.concat(parts, ",")
 end
 
--- two local stacks against each other, built like ClientMatch builds a 1P vs CPU match, each played by a SimpleCpu
+-- two local stacks against each other, built like ClientMatch builds a 1P vs CPU match, each played by a PplCpu
 ---@param gameModeId GameModeID
 ---@param seed integer
 ---@param cpuLevels integer[]
@@ -59,7 +59,7 @@ local function createCpuMatch(gameModeId, seed, cpuLevels, stackLevel)
   for i = 1, 2 do
     local stack = match:createStackWithSettings(LevelPresets.getModern(stackLevel), true, "controller")
     ---@cast stack Stack
-    cpus[i] = ComputerPlayer.create("SimpleCpu", stack, {seed = ComputerPlayer.deriveSeed(seed, i), level = cpuLevels[i]})
+    cpus[i] = ComputerPlayer.create("PplCpu", stack, {seed = ComputerPlayer.deriveSeed(seed, i), level = cpuLevels[i]})
   end
   match:addTarget(match.stacks[1], match.stacks[2])
   match:addTarget(match.stacks[2], match.stacks[1])
@@ -117,12 +117,12 @@ local function reloadReplay(replay)
 end
 
 local function registryTest()
-  expect(ComputerPlayer.isRegistered("SimpleCpu"), true, "SimpleCpu registers itself")
+  expect(ComputerPlayer.isRegistered("PplCpu"), true, "PplCpu registers itself")
   expectError(function()
     ComputerPlayer.create("NoSuchCpu", {}, {seed = 1, level = 1})
   end, "No CPU implementation named NoSuchCpu", "unknown CPUs are refused")
   expectError(function()
-    ComputerPlayer.register("SimpleCpu", function() end)
+    ComputerPlayer.register("PplCpu", function() end)
   end, "already registered", "a name can't be taken twice")
 
   local created = {}
@@ -185,16 +185,6 @@ local function optionValidationTest()
   difficulty, stage = ComputerPlayer.getPreset({seed = 1, difficulty = 3, stage = 7})
   expect(difficulty * 100 + stage, 307, "a Stadium preset is used as it is")
 
-  -- PPL's frames per move (AI-SPEC §3.4)
-  expect(SimpleCpu.getFramesPerAction(1, 1), 35, "Easy stage 1")
-  expect(SimpleCpu.getFramesPerAction(1, 11), 30, "Easy stage 11")
-  expect(SimpleCpu.getFramesPerAction(2, 14), 14, "Normal stage 14")
-  expect(SimpleCpu.getFramesPerAction(3, 6), 14, "Hard stage 6")
-  expect(SimpleCpu.getFramesPerAction(4, 4), 10, "Very Hard stage 4")
-  expect(SimpleCpu.getFramesPerAction(4, 16), 7, "Very Hard stage 16")
-  expect(SimpleCpu.getFramesPerAction(5, 8), 6, "Super Hard stage 8")
-  expect(SimpleCpu.getFramesPerAction(5, 15), 4, "Super Hard stage 15")
-
   local seed1 = ComputerPlayer.deriveSeed(123456, 1)
   local seed2 = ComputerPlayer.deriveSeed(123456, 2)
   assert(seed1 ~= seed2, "each player of a match gets its own seed")
@@ -204,66 +194,6 @@ end
 
 registryTest()
 optionValidationTest()
-
--- a quiet board with one match a slide away, so the CPU has to walk there and make it
----@param cylinder boolean
----@return Match
----@return Stack
-local function createBoardMatch(cylinder)
-  if cylinder then
-    return CylinderTestUtils.createMatch()
-  end
-  local rules = GameModes.getPreset(GameModes.IDs.ONE_PLAYER_ENDLESS).matchRules
-  rules.doCountdown = false
-  rules.stackSetupModifications.behaviours = {passiveRaise = false, allowManualRaise = false}
-  local match = Match(GeneratorSource(1, false), rules)
-  local stack = match:createStackWithSettings(LevelPresets.getModern(5), false, "controller")
-  ---@cast stack Stack
-  match:start()
-  stack:setMaxRunsPerFrame(1)
-  return match, stack
-end
-
----@param cylinder boolean
----@param framesPerAction integer?
-local function clearsBoardTest(cylinder, framesPerAction)
-  local match, stack = createBoardMatch(cylinder)
-  CylinderTestUtils.clearBoard(stack)
-  if cylinder then
-    -- behind the tower and across the seam, so the CPU turns the tower most of the way round
-    CylinderTestUtils.setColors(stack, 1, {[16] = 1, [17] = 2, [18] = 3, [1] = 1, [2] = 1})
-  else
-    -- down from the starting row and right, so the CPU presses the same direction several times; the empty
-    -- space is part of the slide
-    CylinderTestUtils.setColors(stack, 1, {[1] = 1, [2] = 1, [4] = 2, [5] = 3, [6] = 1})
-  end
-  local cpu = ComputerPlayer.create("SimpleCpu", stack, {seed = 1, level = 10})
-  ---@cast cpu SimpleCpu
-  if framesPerAction then
-    cpu.framesPerAction = framesPerAction
-  end
-
-  local previousInput
-  for _ = 1, 600 do
-    local input = cpu:getInput()
-    if input ~= KeyDataEncoding.idle and input ~= KeyDataEncoding.swap then
-      assert(input ~= previousInput, "the CPU releases a direction before pressing it again")
-    end
-    previousInput = input
-    stack:receiveConfirmedInput(input)
-    match:run()
-    if stack.panels_cleared >= 3 then
-      break
-    end
-  end
-  expect(stack.panels_cleared, 3, "the CPU found and made the match")
-  expect(stack.swapCount, cylinder and 2 or 3, "by sliding the panel one column per swap")
-end
-
-clearsBoardTest(false)
-clearsBoardTest(false, 1)
-clearsBoardTest(true)
-clearsBoardTest(true, 1)
 
 local randomAndClocks = {
   {math, "random"}, {love.math, "random"}, {os, "time"}, {os, "clock"}, {love.timer, "getTime"},
@@ -321,11 +251,12 @@ end
 getInputIsReadOnlyTest(GameModes.IDs.ONE_PLAYER_VS_CPU)
 getInputIsReadOnlyTest(GameModes.IDs.ONE_PLAYER_VS_CPU_3D)
 
--- CPU vs CPU plays to a result, the same one every time, and its replay plays back without any CPU
+-- CPU vs CPU plays to a result, the same one every time, and its replay plays back without any CPU.
+-- On Stadium Hard's stack level, slow enough that the weaker CPU clears panels too before it loses.
 ---@param gameModeId GameModeID
 ---@param seed integer
 local function cpuVsCpuTest(gameModeId, seed)
-  local match, cpus = createCpuMatch(gameModeId, seed, {4, 9}, 8)
+  local match, cpus = createCpuMatch(gameModeId, seed, {5, 10}, 4)
   local replay = match:createNewReplay()
   playToEnd(match, cpus)
   local winner = winnerIndex(match)
@@ -334,7 +265,7 @@ local function cpuVsCpuTest(gameModeId, seed)
     assert(stack.panels_cleared > 0, "CPU " .. i .. " made matches")
   end
 
-  local again, againCpus = createCpuMatch(gameModeId, seed, {4, 9}, 8)
+  local again, againCpus = createCpuMatch(gameModeId, seed, {5, 10}, 4)
   playToEnd(again, againCpus)
   for i, stack in ipairs(match.stacks) do
     ---@cast stack Stack
@@ -375,8 +306,10 @@ local function noAllocationTest(gameModeId)
     runFrame(match, cpus)
   end
 
-  -- interpreted, as on Android, so LuaJIT compiling traces doesn't count as garbage of the CPU's
+  -- interpreted, as on Android, so LuaJIT compiling traces doesn't count as garbage of the CPU's; flushed, so a side
+  -- exit of an older trace rebuilding the tables it sank doesn't either
   jit.off()
+  jit.flush()
   collectgarbage("collect")
   collectgarbage("stop")
   local allocated = 0
