@@ -1028,8 +1028,8 @@ local function cpuPlaysATwoDimensionalGame()
   local frames, allocated, usedPossibleRow = play(match, stack, cpu, {mutationCheckEvery = 9, measureAllocationAfter = 1800})
   print(string.format("PPL CPU 2D: %d frames, %d panels cleared, game over: %s, %.2f KB allocated by getInput",
                       frames, stack.panels_cleared, tostring(stack:game_ended()), allocated))
-  -- with only PossibleRow and the fallback the 2D CPU clears the threes PA's rows happen to hold and then tops out:
-  -- PA's generator rarely puts three of a colour in one row
+  -- a low bar: with only PossibleRow and the fallback this game cleared 21 panels and topped out, as PA's generator
+  -- rarely puts three of a colour in one row (PplCombosTests holds the bar for the combo planners)
   assert(stack.panels_cleared >= 15, "the CPU should clear panels, cleared " .. stack.panels_cleared)
   assert(usedPossibleRow, "the CPU should find threes on its cursor row")
   assert(allocated == 0, string.format("getInput allocated %.2f KB over %d frames", allocated, frames - 1800))
