@@ -16,18 +16,18 @@ Branch `stadium` (off `3d-mode`), pushed to `origin` (the public fork). Agent wo
 ## Status
 
 - [x] **Research**: AI-SPEC, STADIUM-SPEC, INTEGRATION written; baseline suite green headless.
-- [ ] **1. CPU plumbing + 1P vs CPU**: a CPU drives a normal `Stack` through `receiveConfirmedInput`; main-menu
+- [x] **1. CPU plumbing + 1P vs CPU**: a CPU drives a normal `Stack` through `receiveConfirmedInput`; main-menu
   "1P vs CPU" (2D and 3D) with CPU level 1–10; tests for determinism, replay round trip, read-only.
-- [ ] **2a. PPL CPU core**: RNG, board adapter, brain/queues, helpers, executor, `UpdateAI` cascade with planner slots.
-- [ ] **2b. PPL CPU planners**: chains (Vert1–5, Hori1–5), garbage and volume, combos and fallback.
-- [ ] **3. Stadium mode**: ladder room, difficulty menu, game scene, recap, saved progress, unlocks, Stadium 3D.
+- [x] **2a. PPL CPU core**: RNG, board adapter, brain/queues, helpers, executor, `UpdateAI` cascade with planner slots.
+- [~] **2b. PPL CPU planners**: chains (Vert1–5, Hori1–5), garbage and volume, combos and fallback.
+- [~] **3. Stadium mode**: ladder room, difficulty menu, game scene, recap, saved progress, unlocks, Stadium 3D.
 - [ ] **4. Tuning and polish**: CPU-vs-CPU difficulty ladder check, pre-match and result cards, endings, playtest.
 
 ## Next up
 
-1. Phase 1 and phase 2a in parallel (independent: 1 needs only the interface, 2a only the spec).
-2. Phase 2b (three planner agents in parallel) and phase 3 in parallel once 1 and 2a are merged.
-3. Phase 4, then Michael plays it.
+1. Merge phase 2b (chains, garbage, combos) and phase 3 (running in parallel); switch 1P vs CPU from SimpleCpu to
+   PplCpu once the planners are in.
+2. Phase 4, then Michael plays it.
 
 ## Decisions taken (override any of them)
 
@@ -121,3 +121,10 @@ INTEGRATION.md §A4 recipe + STADIUM-SPEC §3 flow:
   functions fully read, including the 17 asm-only ones; per-stage difficulty table), STADIUM-SPEC (ladder 11/14/15/16/16,
   stack levels map to PA 1/2/4, flow, continues) and INTEGRATION (dead CPU hook in `ClientMatch:run`, mode recipe,
   prior art: nothing reusable beyond the decomp). Plan written; branch `stadium` off `3d-mode`.
+- 2026-10-13: Phase 1 merged: `ComputerPlayer` registry (`create(name, stack, {seed, level | difficulty+stage})`),
+  `CpuPlayer`, CPU inputs injected in `ClientMatch:run` like a human's, 1P vs CPU and 1P vs CPU 3D with a level 1–10
+  picker, `SimpleCpu` placeholder, replay round trip without the CPU, zero allocation per frame. Phase 2a merged:
+  `PplCpu` core (RNG, board adapter with the 3D view window and board-column commands, brain, helpers, executor,
+  `UpdateAI` cascade, presets), with only PossibleRow and the fallback planner live: it clears 21 panels before
+  topping out in 2D, so 1P vs CPU stays on SimpleCpu until the planners land. Started chains, garbage, combos and
+  Stadium mode agents in parallel.
