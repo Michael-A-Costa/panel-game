@@ -711,3 +711,4 @@ stadium_title_rogues,Stadium opponent title,Rogues,Voyous,Bandidos,わるもの,
 stadium_title_elite,Stadium opponent title; %1 is the elite's number,Elite %1,Élite %1,Elite %1,エリート %1,Élite %1,Elite %1,Élite %1,อีลีท %1
 stadium_title_champion,Stadium opponent title,Champion,Champion,Campeão,チャンピオン,Campeón,Champion,Campione,แชมเปี้ยน
 stadium_title_boss,Stadium opponent title,Final Boss,Boss final,Chefe final,ラスボス,Jefe final,Endgegner,Boss finale,บอสสุดท้าย
+stadium_stage_beaten,Shown after winning a Stadium match; %1 is the beaten stage's title; %2 the next one's,%1 beaten! Next: %2,%1 vaincu ! Suivant : %2,%1 vencido! Próximo: %2,%1 撃破！ 次: %2,¡%1 superado! Siguiente: %2,%1 besiegt! Weiter: %2,%1 battuto! Prossimo: %2,ชนะ %1 แล้ว! ต่อไป: %2

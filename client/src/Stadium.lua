@@ -4,13 +4,14 @@ local GameModes = require("common.data.GameModes")
 local LevelPresets = require("common.data.LevelPresets")
 local StadiumLadder = require("common.data.StadiumLadder")
 local CpuPlayer = require("client.src.CpuPlayer")
+local StadiumProgress = require("client.src.StadiumProgress")
 require("client.src.BattleRoom")
 
 local CPU_NAME = "PplCpu"
 
 ---@class StadiumOptions
 ---@field resume boolean? continue the difficulty's saved run instead of starting a new one
----@field scores Scores? where progress is read and saved; GAME.scores if nil
+---@field progress StadiumProgress? where progress is read and saved; the player's own if nil
 
 -- A run up one difficulty of the 1P Stadium ladder (docs/stadium/STADIUM-SPEC.md §3): the local player against the
 -- PPL CPU, one game per stage. A win moves on to the next stage, a draw replays the stage for free, a loss costs a
@@ -26,7 +27,8 @@ local CPU_NAME = "PplCpu"
 ---@field complete boolean the last stage was beaten
 ---@field unlockedDifficulty integer? the difficulty this run's clear unlocked, for the recap
 ---@field cpuPlayer CpuPlayer
----@field scores Scores
+---@field opponentCandidates string[] the characters the run's opponents wear, from Stadium.getOpponentCandidates
+---@field stadiumProgress StadiumProgress
 ---@overload fun(mode: GameMode, gameScene: table?, difficulty: integer, options: StadiumOptions): Stadium
 local Stadium
 -- declared first so the constructor can reach the static functions below
@@ -41,19 +43,19 @@ function(self, mode, gameScene, difficulty, options)
   self.difficulty = difficulty
   self.difficultyName = loc(self.ladder.nameKey)
   self.dimension = Stadium.getDimension(mode)
-  self.scores = options.scores or GAME.scores
+  self.stadiumProgress = options.progress or StadiumProgress.load()
   self.complete = false
   self.unlockedDifficulty = nil
 
   local startStage = 1
   if options.resume then
-    local progress = self.scores:getStadiumProgress(self.dimension, difficulty)
+    local progress = self.stadiumProgress:get(self.dimension, difficulty)
     startStage = math.min(progress.lastStageBeaten + 1, #self.ladder.stages)
     self.continues = progress.continues
     self.expendedTime = progress.time
   else
     -- like PPL, a new game wipes the difficulty's saved run
-    self.scores:resetStadiumRun(self.dimension, difficulty)
+    self.stadiumProgress:resetRun(self.dimension, difficulty)
     self.continues = 0
     self.expendedTime = 0
   end
@@ -63,7 +65,9 @@ function(self, mode, gameScene, difficulty, options)
 
   self.cpuPlayer = CpuPlayer("")
   self:addPlayer(self.cpuPlayer)
-  -- the opponent's character depends on the player's (see Stadium.getOpponentCandidates)
+  -- fixed for the run, so the rival and the boss stay who they are
+  self.opponentCandidates = Stadium.getOpponentCandidates()
+  -- only a stage whose opponent wears the player's pick changes with it (see Stadium.getStandIn)
   GAME.localPlayer:connectSignal("characterIdChanged", self, self.refreshOpponentCharacter)
   self:restoreInputConfigurations()
   self:setStage(startStage)
@@ -90,13 +94,13 @@ function Stadium.getDimension(gameMode)
 end
 
 -- a difficulty is open from the start or once the one it names is cleared, separately in 2D and 3D
----@param scores Scores
+---@param stadiumProgress StadiumProgress
 ---@param dimension StadiumDimension
 ---@param difficulty integer
 ---@return boolean
-function Stadium.isUnlocked(scores, dimension, difficulty)
+function Stadium.isUnlocked(stadiumProgress, dimension, difficulty)
   local unlockedBy = StadiumLadder.getDifficulty(difficulty).unlockedBy
-  return unlockedBy == nil or scores:getStadiumProgress(dimension, unlockedBy).clears > 0
+  return unlockedBy == nil or stadiumProgress:get(dimension, unlockedBy).clears > 0
 end
 
 ---@param stage StadiumStage
@@ -109,31 +113,22 @@ function Stadium.getStageTitle(stage)
   end
 end
 
--- The characters an opponent may wear, in the order of the character select: every visible character except bundles
--- and the player's own. Only if that leaves nothing, bundles' first characters, and then the player's own, count.
----@param playerCharacterId string?
+-- The characters an opponent may wear, in the order of the character select: every visible character except
+-- bundles, or the bundles' first characters if that leaves nothing. It doesn't depend on the player's pick, so a run's
+-- cast stays the same while the player changes characters.
 ---@return string[]
-function Stadium.getOpponentCandidates(playerCharacterId)
+function Stadium.getOpponentCandidates()
   local candidates = {}
   for _, characterId in ipairs(visibleCharacters) do
-    if characterId ~= playerCharacterId and not characters[characterId]:isBundle() then
+    if not characters[characterId]:isBundle() then
       candidates[#candidates + 1] = characterId
     end
   end
 
   if #candidates == 0 then
     for _, characterId in ipairs(visibleCharacters) do
-      if characters[characterId]:isBundle() then
-        characterId = characters[characterId].subIds[1]
-      end
-      if characterId ~= playerCharacterId then
-        candidates[#candidates + 1] = characterId
-      end
+      candidates[#candidates + 1] = characters[characterId].subIds[1]
     end
-  end
-
-  if #candidates == 0 and playerCharacterId then
-    candidates[1] = playerCharacterId
   end
 
   return candidates
@@ -159,17 +154,52 @@ function Stadium.getOpponentCharacter(candidates, stage)
   end
 end
 
+-- The character a stage's opponent wears against this player: its own, unless the player picked that one. Then the
+-- first in-between candidate the player didn't pick stands in, the same one every time, so a stand-in is never the
+-- rival or the boss while there are others. With a single candidate it is a mirror match.
+---@param candidates string[] from Stadium.getOpponentCandidates
+---@param characterId string the stage's own opponent, from Stadium.getOpponentCharacter
+---@param playerCharacterId string?
+---@return string characterId
+function Stadium.getStandIn(candidates, characterId, playerCharacterId)
+  if characterId ~= playerCharacterId then
+    return characterId
+  end
+  for i = 2, #candidates - 1 do
+    if candidates[i] ~= playerCharacterId then
+      return candidates[i]
+    end
+  end
+  for _, candidate in ipairs(candidates) do
+    if candidate ~= playerCharacterId then
+      return candidate
+    end
+  end
+  return characterId
+end
+
+-- Every Stadium match runs in Game1pStadium: the PortraitGame BattleRoom gives touch players has no pre-match card,
+-- HUD or recap, and would leave a cleared ladder sitting on its last stage.
+---@param match ClientMatch
+---@return GameBase
+function Stadium:createScene(match)
+  return self.gameScene({match = match})
+end
+
 ---@return StadiumStage
 function Stadium:getStage()
   return self.ladder.stages[self.stageIndex]
 end
 
+-- The opponent wears a character and goes by its name, the way PPL's name bar shows the trainer; the stage title
+-- has its own place in the HUD.
 function Stadium:refreshOpponentCharacter()
-  local candidates = Stadium.getOpponentCandidates(GAME.localPlayer.settings.characterId)
-  local characterId = Stadium.getOpponentCharacter(candidates, self:getStage())
+  local cast = Stadium.getOpponentCharacter(self.opponentCandidates, self:getStage())
+  local characterId = Stadium.getStandIn(self.opponentCandidates, cast, GAME.localPlayer.settings.characterId)
   if characterId ~= self.cpuPlayer.settings.characterId then
     self.cpuPlayer:setCharacter(characterId)
   end
+  self.cpuPlayer.name = characters[characterId].display_name
 end
 
 ---@param index integer
@@ -182,7 +212,6 @@ function Stadium:setStage(index)
   GAME.localPlayer:setLevelData(LevelPresets.getModern(stage.level))
   self.cpuPlayer:setCpu(CPU_NAME, stage.cpuOptions)
   self.cpuPlayer:copyLevelFrom(GAME.localPlayer)
-  self.cpuPlayer.name = Stadium.getStageTitle(stage)
   self:refreshOpponentCharacter()
 end
 
@@ -210,17 +239,17 @@ function Stadium:recordStageResult(winners, gameLength)
     end
   end
 
-  self.scores:saveStadiumRun(self.dimension, self.difficulty, self.stageIndex - 1, self.continues, self.expendedTime)
+  self.stadiumProgress:saveRun(self.dimension, self.difficulty, self.stageIndex - 1, self.continues, self.expendedTime)
 end
 
 function Stadium:completeLadder()
   self.complete = true
   for difficulty, ladder in ipairs(StadiumLadder.difficulties) do
-    if ladder.unlockedBy == self.difficulty and not Stadium.isUnlocked(self.scores, self.dimension, difficulty) then
+    if ladder.unlockedBy == self.difficulty and not Stadium.isUnlocked(self.stadiumProgress, self.dimension, difficulty) then
       self.unlockedDifficulty = difficulty
     end
   end
-  self.scores:saveStadiumClear(self.dimension, self.difficulty, self.continues, self.expendedTime)
+  self.stadiumProgress:saveClear(self.dimension, self.difficulty, self.continues, self.expendedTime)
 end
 
 ---@param match ClientMatch
