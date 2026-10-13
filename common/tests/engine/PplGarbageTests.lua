@@ -675,7 +675,9 @@ local function cpuClearsGarbageInAGame()
                       without.garbageMatches))
   assert(withPlanners.garbageMatches >= 3, "the CPU should clear garbage, cleared " .. withPlanners.garbageMatches)
   assert(withPlanners.garbageMatches > without.garbageMatches, "the garbage planners should clear more garbage")
-  assert(withPlanners.frames > without.frames * 3 / 2, "the garbage planners should keep the CPU alive longer")
+  -- the other planners keep a CPU alive for a while too, so only ask for the whole game and more than without
+  assert(withPlanners.frames == GAME_FRAMES, "the CPU should survive the whole game, topped out at " .. withPlanners.frames)
+  assert(withPlanners.frames > without.frames, "the garbage planners should keep the CPU alive longer")
   assert(withPlanners.frames > MEASURE_TO, "the allocation check needs the game to last past its window")
   assert(withPlanners.allocated == 0, string.format("getInput allocated %.2f KB", withPlanners.allocated))
 end
