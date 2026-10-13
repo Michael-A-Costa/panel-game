@@ -1,7 +1,7 @@
 local Scene = require("client.src.scenes.Scene")
 local class = require("common.lib.class")
 
--- Base of the small menus that set up a local mode against the CPU (1P vs CPU) before its character
+-- Base of the small menus that set up a local mode against the CPU (1P vs CPU, 1P Stadium) before its character
 -- select: the main menu's background and music, a game mode from the scene parameters, a centered menu and back.
 -- Subclasses set DEFAULT_GAME_MODE_ID, build self.menu in load and call it from their constructor.
 ---@class LocalModeMenu : Scene
