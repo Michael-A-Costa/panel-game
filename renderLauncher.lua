@@ -74,7 +74,7 @@ local ClientMatch = require("client.src.ClientMatch")
 local Player = require("client.src.Player")
 local CpuPlayer = require("client.src.CpuPlayer")
 local StadiumLadder = require("common.data.StadiumLadder")
-local Scores = require("client.src.scores")
+local StadiumProgress = require("client.src.StadiumProgress")
 local Stadium = require("client.src.Stadium")
 
 local IDLE = KeyDataEncoding.base64encode[1]
@@ -142,7 +142,7 @@ end
 local function createCpuMatch(gameModeId, cpuLevels, frames)
   local players = {}
   for i, cpuLevel in ipairs(cpuLevels) do
-    local player = CpuPlayer(loc("cpu_name", cpuLevel))
+    local player = CpuPlayer(loc("cpu_name", tostring(cpuLevel)))
     player:setCpu("PplCpu", {level = cpuLevel})
     player:setLevel(5)
     player:setLevelData(LevelPresets.getModern(5))
@@ -160,12 +160,12 @@ local function createCpuMatch(gameModeId, cpuLevels, frames)
   return scene
 end
 
--- Scores for the harness, which never touches the player's save
----@return Scores
-local function createUnsavedScores()
-  local scores = Scores()
-  scores.saveToFile = function() end
-  return scores
+-- Stadium progress for the harness, which never touches the player's save
+---@return StadiumProgress
+local function createUnsavedProgress()
+  local progress = StadiumProgress()
+  progress.saveToFile = function() end
+  return progress
 end
 
 -- a Stadium match as the game runs it, the PPL CPU against an idle player, run for a while to show the HUD
@@ -178,8 +178,7 @@ local function createStadiumMatch(gameModeId, frames, keepCard)
   if GAME.localPlayer.name == "" then
     GAME.localPlayer.name = "Player"
   end
-  local scores = createUnsavedScores()
-  local stadium = Stadium.create(StadiumLadder.HARD, gameModeId, {scores = scores})
+  local stadium = Stadium.create(StadiumLadder.HARD, gameModeId, {progress = createUnsavedProgress()})
   stadium:setStage(4)
   stadium.continues = 2
   stadium.panelSource = GeneratorSource(4242, true)
@@ -518,7 +517,7 @@ local shots = {
     -- a first Hard clear, which opens Very Hard
     name = "stadium_recap.png",
     prepare = function()
-      local stadium = Stadium.create(StadiumLadder.HARD, GameModes.IDs.ONE_PLAYER_STADIUM, {scores = createUnsavedScores()})
+      local stadium = Stadium.create(StadiumLadder.HARD, GameModes.IDs.ONE_PLAYER_STADIUM, {progress = createUnsavedProgress()})
       GAME.battleRoom = stadium
       stadium.continues = 3
       while not stadium.complete do

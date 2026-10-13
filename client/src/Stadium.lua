@@ -4,13 +4,14 @@ local GameModes = require("common.data.GameModes")
 local LevelPresets = require("common.data.LevelPresets")
 local StadiumLadder = require("common.data.StadiumLadder")
 local CpuPlayer = require("client.src.CpuPlayer")
+local StadiumProgress = require("client.src.StadiumProgress")
 require("client.src.BattleRoom")
 
 local CPU_NAME = "PplCpu"
 
 ---@class StadiumOptions
 ---@field resume boolean? continue the difficulty's saved run instead of starting a new one
----@field scores Scores? where progress is read and saved; GAME.scores if nil
+---@field progress StadiumProgress? where progress is read and saved; the player's own if nil
 
 -- A run up one difficulty of the 1P Stadium ladder (docs/stadium/STADIUM-SPEC.md §3): the local player against the
 -- PPL CPU, one game per stage. A win moves on to the next stage, a draw replays the stage for free, a loss costs a
@@ -26,7 +27,7 @@ local CPU_NAME = "PplCpu"
 ---@field complete boolean the last stage was beaten
 ---@field unlockedDifficulty integer? the difficulty this run's clear unlocked, for the recap
 ---@field cpuPlayer CpuPlayer
----@field scores Scores
+---@field stadiumProgress StadiumProgress
 ---@overload fun(mode: GameMode, gameScene: table?, difficulty: integer, options: StadiumOptions): Stadium
 local Stadium
 -- declared first so the constructor can reach the static functions below
@@ -41,19 +42,19 @@ function(self, mode, gameScene, difficulty, options)
   self.difficulty = difficulty
   self.difficultyName = loc(self.ladder.nameKey)
   self.dimension = Stadium.getDimension(mode)
-  self.scores = options.scores or GAME.scores
+  self.stadiumProgress = options.progress or StadiumProgress.load()
   self.complete = false
   self.unlockedDifficulty = nil
 
   local startStage = 1
   if options.resume then
-    local progress = self.scores:getStadiumProgress(self.dimension, difficulty)
+    local progress = self.stadiumProgress:get(self.dimension, difficulty)
     startStage = math.min(progress.lastStageBeaten + 1, #self.ladder.stages)
     self.continues = progress.continues
     self.expendedTime = progress.time
   else
     -- like PPL, a new game wipes the difficulty's saved run
-    self.scores:resetStadiumRun(self.dimension, difficulty)
+    self.stadiumProgress:resetRun(self.dimension, difficulty)
     self.continues = 0
     self.expendedTime = 0
   end
@@ -90,13 +91,13 @@ function Stadium.getDimension(gameMode)
 end
 
 -- a difficulty is open from the start or once the one it names is cleared, separately in 2D and 3D
----@param scores Scores
+---@param stadiumProgress StadiumProgress
 ---@param dimension StadiumDimension
 ---@param difficulty integer
 ---@return boolean
-function Stadium.isUnlocked(scores, dimension, difficulty)
+function Stadium.isUnlocked(stadiumProgress, dimension, difficulty)
   local unlockedBy = StadiumLadder.getDifficulty(difficulty).unlockedBy
-  return unlockedBy == nil or scores:getStadiumProgress(dimension, unlockedBy).clears > 0
+  return unlockedBy == nil or stadiumProgress:get(dimension, unlockedBy).clears > 0
 end
 
 ---@param stage StadiumStage
@@ -212,17 +213,17 @@ function Stadium:recordStageResult(winners, gameLength)
     end
   end
 
-  self.scores:saveStadiumRun(self.dimension, self.difficulty, self.stageIndex - 1, self.continues, self.expendedTime)
+  self.stadiumProgress:saveRun(self.dimension, self.difficulty, self.stageIndex - 1, self.continues, self.expendedTime)
 end
 
 function Stadium:completeLadder()
   self.complete = true
   for difficulty, ladder in ipairs(StadiumLadder.difficulties) do
-    if ladder.unlockedBy == self.difficulty and not Stadium.isUnlocked(self.scores, self.dimension, difficulty) then
+    if ladder.unlockedBy == self.difficulty and not Stadium.isUnlocked(self.stadiumProgress, self.dimension, difficulty) then
       self.unlockedDifficulty = difficulty
     end
   end
-  self.scores:saveStadiumClear(self.dimension, self.difficulty, self.continues, self.expendedTime)
+  self.stadiumProgress:saveClear(self.dimension, self.difficulty, self.continues, self.expendedTime)
 end
 
 ---@param match ClientMatch

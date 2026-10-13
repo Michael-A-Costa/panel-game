@@ -4,13 +4,14 @@ local ui = require("client.src.ui")
 local GameModes = require("common.data.GameModes")
 local StadiumLadder = require("common.data.StadiumLadder")
 local Stadium = require("client.src.Stadium")
+local StadiumProgress = require("client.src.StadiumProgress")
 local CharacterSelectStadium = require("client.src.scenes.CharacterSelectStadium")
 
 -- Scene picking the difficulty of a 1P Stadium run, 2D or 3D, and whether to resume its saved run
 ---@class StadiumMenu : Scene
 ---@field gameModeId GameModeID ONE_PLAYER_STADIUM or ONE_PLAYER_STADIUM_3D
 ---@field dimension StadiumDimension
----@field scores Scores
+---@field stadiumProgress StadiumProgress
 ---@field menu Menu
 ---@field difficultyStepper Stepper
 ---@field resumeItem MenuItem? present while the picked difficulty has a saved run
@@ -21,7 +22,7 @@ local StadiumMenu = class(
     self.keepMusic = true
     self.gameModeId = sceneParams and sceneParams.gameModeId or GameModes.IDs.ONE_PLAYER_STADIUM
     self.dimension = Stadium.getDimension(GameModes.getPreset(self.gameModeId))
-    self.scores = sceneParams and sceneParams.scores or GAME.scores
+    self.stadiumProgress = sceneParams and sceneParams.progress or StadiumProgress.load()
     self.resumeItem = nil
     self:load(sceneParams)
   end,
@@ -41,7 +42,7 @@ end
 ---@param difficulty integer
 ---@return boolean
 function StadiumMenu:isUnlocked(difficulty)
-  return Stadium.isUnlocked(self.scores, self.dimension, difficulty)
+  return Stadium.isUnlocked(self.stadiumProgress, self.dimension, difficulty)
 end
 
 ---@return Label[]
@@ -70,7 +71,7 @@ function StadiumMenu:goToCharacterSelect(resume)
 
   GAME.theme:playValidationSfx()
   lastDifficulty = difficulty
-  GAME.battleRoom = Stadium.create(difficulty, self.gameModeId, {resume = resume, scores = self.scores})
+  GAME.battleRoom = Stadium.create(difficulty, self.gameModeId, {resume = resume, progress = self.stadiumProgress})
   if GAME.battleRoom then
     GAME.navigationStack:push(CharacterSelectStadium({battleRoom = GAME.battleRoom}))
   end
@@ -118,12 +119,12 @@ function StadiumMenu:refreshDifficulty()
 
   local difficulty = self.difficultyStepper.value
   local ladder = StadiumLadder.getDifficulty(difficulty)
-  local progress = self.scores:getStadiumProgress(self.dimension, difficulty)
+  local progress = self.stadiumProgress:get(self.dimension, difficulty)
   if not self:isUnlocked(difficulty) then
     local unlockedBy = StadiumLadder.getDifficulty(ladder.unlockedBy)
     self.infoLabel:setText(loc("stadium_unlock_hint", loc(unlockedBy.nameKey)), nil, false)
   elseif progress.clears > 0 then
-    self.infoLabel:setText(loc("stadium_record", progress.clears, progress.bestContinues), nil, false)
+    self.infoLabel:setText(loc("stadium_record", tostring(progress.clears), tostring(progress.bestContinues)), nil, false)
   else
     self.infoLabel:setText("", nil, false)
   end

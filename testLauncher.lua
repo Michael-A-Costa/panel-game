@@ -115,6 +115,7 @@ local allTests = {
   "client.tests.PlayerSettingsTests",
   "client.tests.VsCpuTests",
   "client.tests.StadiumTests",
+  "client.tests.StadiumProgressTests",
 }
 
 -- Check for specific test name argument

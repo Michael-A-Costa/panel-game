@@ -4,34 +4,13 @@ local PuzzleLibrary = require("client.src.PuzzleLibrary")
 local tableUtils = require("common.lib.tableUtils")
 local class = require("common.lib.class")
 local logger = require("common.lib.logger")
-local StadiumLadder = require("common.data.StadiumLadder")
 
 -- 1 had only vs scores in an incompatible format
 -- 2 has vs self, time attack, endless
 -- 3 has vs self, time attack, endless, puzzles
 -- 4 has vs self, time attack, endless, puzzles UUIDv2 (original)
 -- 5 has vs self, time attack, endless, puzzles UUIDv2 (with cursor/buffers)
--- 6 adds 1P Stadium progress; older files get fresh progress
-local currentVersion = 6
-
----@alias StadiumDimension "2d" | "3d"
-
--- One difficulty of 1P Stadium in one dimension: the run in progress, which "resume" continues, and its clears
----@class StadiumProgress
----@field lastStageBeaten integer the run's last beaten stage, 0 if none; a resumed run starts at the next one
----@field continues integer continues the run used so far
----@field time integer frames the run played so far, lost matches included
----@field clears integer how often the difficulty was finished
----@field bestContinues integer fewest continues of a finished run; meaningless while clears is 0
----@field bestTime integer fewest frames of a finished run; meaningless while clears is 0
-
-local STADIUM_PROGRESS_FIELDS = {"lastStageBeaten", "continues", "time", "clears", "bestContinues", "bestTime"}
-local STADIUM_DIMENSIONS = {"2d", "3d"}
-
----@return StadiumProgress
-local function newStadiumProgress()
-  return {lastStageBeaten = 0, continues = 0, time = 0, clears = 0, bestContinues = 0, bestTime = 0}
-end
+local currentVersion = 5
 
 -- Holds on the current scores and records for game modes
 ---@class Scores
@@ -40,7 +19,6 @@ end
 ---@field timeAttack1P table
 ---@field endless table
 ---@field puzzleRecords table
----@field stadium table<StadiumDimension, StadiumProgress[]> progress per dimension and difficulty
 Scores =
     class(
       function(self)
@@ -69,14 +47,6 @@ Scores =
         end
 
         self.puzzleRecords = {}
-
-        self.stadium = {}
-        for _, dimension in ipairs(STADIUM_DIMENSIONS) do
-          self.stadium[dimension] = {}
-          for difficulty = 1, StadiumLadder.DIFFICULTY_COUNT do
-            self.stadium[dimension][difficulty] = newStadiumProgress()
-          end
-        end
       end
     )
 
@@ -233,27 +203,13 @@ function Scores.recordEndlessForLevel(self, level)
 end
 
 function Scores.createFromScoreFile()
+  local scores = Scores()
   local scoreData = nil
   pcall(
     function()
       scoreData = fileUtils.readJsonFile("scores.json")
     end
   )
-  local scores, upgraded = Scores.createFromScoreData(scoreData)
-  if upgraded then
-    scores:saveToFile()
-  end
-
-  return scores
-end
-
--- Builds the scores from the decoded contents of a scores file, upgrading older versions
----@param scoreData table? nil if there is no file
----@return Scores scores
----@return boolean upgraded true if the data was of an older version, so the file needs rewriting
-function Scores.createFromScoreData(scoreData)
-  local scores = Scores()
-  local upgraded = false
   if scoreData then
     if scoreData.version and type(scoreData.version) == "number" then
       scores.version = scoreData.version
@@ -281,39 +237,15 @@ function Scores.createFromScoreData(scoreData)
           scores:upgradeFromV4ToV5(scoreData)
         end
       end
-      -- before 6 there is no Stadium progress, so the constructor's empty progress stands
-      if scoreData.stadium then
-        scores:loadStadiumProgress(scoreData.stadium)
-      end
 
       if scores.version < currentVersion then
         scores.version = currentVersion
-        upgraded = true
+        scores:saveToFile()
       end
     end
   end
 
-  return scores, upgraded
-end
-
--- Takes over the saved Stadium progress field by field, so a hand edited or partial file can't break a run
----@param stadiumData table
-function Scores:loadStadiumProgress(stadiumData)
-  for _, dimension in ipairs(STADIUM_DIMENSIONS) do
-    local savedDifficulties = stadiumData[dimension]
-    if type(savedDifficulties) == "table" then
-      for difficulty, progress in ipairs(self.stadium[dimension]) do
-        local saved = savedDifficulties[difficulty]
-        if type(saved) == "table" then
-          for _, field in ipairs(STADIUM_PROGRESS_FIELDS) do
-            if type(saved[field]) == "number" then
-              progress[field] = saved[field]
-            end
-          end
-        end
-      end
-    end
-  end
+  return scores
 end
 
 function Scores:upgradeFromScoreData(scoreData)
@@ -373,53 +305,6 @@ function Scores:carryRecordsToPuzzle(puzzle)
   end
   self.puzzleRecords[puzzle.UUID] = carried
   return true
-end
-
----@param dimension StadiumDimension
----@param difficulty integer
----@return StadiumProgress progress the saved progress; change it only through the Scores functions below
-function Scores:getStadiumProgress(dimension, difficulty)
-  local progress = self.stadium[dimension] and self.stadium[dimension][difficulty]
-  assert(progress, "No Stadium progress for " .. tostring(dimension) .. " difficulty " .. tostring(difficulty))
-  return progress
-end
-
--- Saves where the run of a difficulty stands, after every match
----@param dimension StadiumDimension
----@param difficulty integer
----@param lastStageBeaten integer
----@param continues integer
----@param time integer frames
-function Scores:saveStadiumRun(dimension, difficulty, lastStageBeaten, continues, time)
-  local progress = self:getStadiumProgress(dimension, difficulty)
-  progress.lastStageBeaten = lastStageBeaten
-  progress.continues = continues
-  progress.time = time
-  self:saveToFile()
-end
-
--- Forgets the run of a difficulty, as starting a new game does; its clears stay
----@param dimension StadiumDimension
----@param difficulty integer
-function Scores:resetStadiumRun(dimension, difficulty)
-  self:saveStadiumRun(dimension, difficulty, 0, 0, 0)
-end
-
--- Records a finished run; the next game of the difficulty starts from its first stage again
----@param dimension StadiumDimension
----@param difficulty integer
----@param continues integer
----@param time integer frames
-function Scores:saveStadiumClear(dimension, difficulty, continues, time)
-  local progress = self:getStadiumProgress(dimension, difficulty)
-  if progress.clears == 0 or continues < progress.bestContinues then
-    progress.bestContinues = continues
-  end
-  if progress.clears == 0 or time < progress.bestTime then
-    progress.bestTime = time
-  end
-  progress.clears = progress.clears + 1
-  self:resetStadiumRun(dimension, difficulty)
 end
 
 function Scores.saveToFile(self)

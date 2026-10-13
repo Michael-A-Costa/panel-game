@@ -4,7 +4,7 @@ local StadiumLadder = require("common.data.StadiumLadder")
 local ComputerPlayer = require("common.engine.computerPlayers.ComputerPlayer")
 local GeneratorSource = require("common.engine.GeneratorSource")
 local ClientMatch = require("client.src.ClientMatch")
-local Scores = require("client.src.scores")
+local StadiumProgress = require("client.src.StadiumProgress")
 local Stadium = require("client.src.Stadium")
 local StadiumMenu = require("client.src.scenes.StadiumMenu")
 local CharacterSelectStadium = require("client.src.scenes.CharacterSelectStadium")
@@ -19,15 +19,17 @@ local function expect(actual, expected, what)
   assert(actual == expected, what .. ": expected " .. tostring(expected) .. ", got " .. tostring(actual))
 end
 
--- Scores whose saving is counted instead of writing the player's scores.json
----@return Scores
-local function createUnsavedScores()
-  local scores = Scores()
-  scores.saveCount = 0
-  scores.saveToFile = function(self)
+-- Stadium progress whose saving is counted instead of writing the player's stadium.json
+---@return UnsavedStadiumProgress
+local function createUnsavedProgress()
+  ---@class UnsavedStadiumProgress : StadiumProgress
+  ---@field saveCount integer
+  local saved = StadiumProgress()
+  saved.saveCount = 0
+  saved.saveToFile = function(self)
     self.saveCount = self.saveCount + 1
   end
-  return scores
+  return saved
 end
 
 -- the room changes the local player's level; tests put it back so later tests see the player as they found it
@@ -104,8 +106,8 @@ end
 
 -- the run of one difficulty: win, draw, loss and abort, then up to the end of a ladder without a boss
 local function stageFlowTest()
-  local scores = createUnsavedScores()
-  local stadium = Stadium.create(StadiumLadder.NORMAL, GameModes.IDs.ONE_PLAYER_STADIUM, {scores = scores})
+  local saved = createUnsavedProgress()
+  local stadium = Stadium.create(StadiumLadder.NORMAL, GameModes.IDs.ONE_PLAYER_STADIUM, {progress = saved})
   local human = GAME.localPlayer
   local cpu = stadium.cpuPlayer
 
@@ -125,7 +127,7 @@ local function stageFlowTest()
   stadium:recordStageResult({human}, 600)
   expect(stadium.stageIndex, 2, "a win moves on")
   expect(cpu.settings.cpuOptions.stage, 2, "to the next CPU")
-  local progress = scores:getStadiumProgress("2d", StadiumLadder.NORMAL)
+  local progress = saved:get("2d", StadiumLadder.NORMAL)
   expect(progress.lastStageBeaten, 1, "the win is saved")
   expect(progress.time, 600, "with the time played")
 
@@ -142,12 +144,12 @@ local function stageFlowTest()
   expect(stadium.continues, 2, "leaving a match costs a continue too")
   expect(progress.time, 1200, "every match's time counts")
 
-  local saves = scores.saveCount
+  local saves = saved.saveCount
   while not stadium.complete do
     stadium:recordStageResult({human}, 60)
   end
   expect(stadium.stageIndex, 14, "Normal ends after stage 14")
-  expect(scores.saveCount - saves, 13, "every match is saved")
+  expect(saved.saveCount - saves, 13, "every match is saved")
   expect(progress.clears, 1, "the clear is recorded")
   expect(progress.bestContinues, 2, "with its continues")
   expect(progress.lastStageBeaten, 0, "and the next game starts over")
@@ -157,17 +159,17 @@ end
 
 -- the boss: losing it goes back to the rival, and both have to be beaten back to back; clearing unlocks the next
 local function bossAndUnlockTest()
-  local scores = createUnsavedScores()
+  local saved = createUnsavedProgress()
   local veryHard = StadiumLadder.VERY_HARD
-  assert(not Stadium.isUnlocked(scores, "3d", veryHard), "Very Hard starts locked")
-  scores:saveStadiumClear("3d", StadiumLadder.HARD, 0, 0)
-  assert(Stadium.isUnlocked(scores, "3d", veryHard), "clearing Hard unlocks Very Hard")
-  assert(not Stadium.isUnlocked(scores, "2d", veryHard), "in the dimension it was cleared in")
-  assert(not Stadium.isUnlocked(scores, "3d", StadiumLadder.SUPER_HARD), "Super Hard needs Very Hard")
+  assert(not Stadium.isUnlocked(saved, "3d", veryHard), "Very Hard starts locked")
+  saved:saveClear("3d", StadiumLadder.HARD, 0, 0)
+  assert(Stadium.isUnlocked(saved, "3d", veryHard), "clearing Hard unlocks Very Hard")
+  assert(not Stadium.isUnlocked(saved, "2d", veryHard), "in the dimension it was cleared in")
+  assert(not Stadium.isUnlocked(saved, "3d", StadiumLadder.SUPER_HARD), "Super Hard needs Very Hard")
 
   -- a saved run that beat stage 14
-  scores:saveStadiumRun("3d", veryHard, 14, 3, 1000)
-  local stadium = Stadium.create(veryHard, GameModes.IDs.ONE_PLAYER_STADIUM_3D, {resume = true, scores = scores})
+  saved:saveRun("3d", veryHard, 14, 3, 1000)
+  local stadium = Stadium.create(veryHard, GameModes.IDs.ONE_PLAYER_STADIUM_3D, {resume = true, progress = saved})
   local human = GAME.localPlayer
   local cpu = stadium.cpuPlayer
   expect(stadium.dimension, "3d", "the 3D mode")
@@ -192,7 +194,7 @@ local function bossAndUnlockTest()
   expect(stadium.stageIndex, 15, "losing the boss goes back to the rival")
   expect(stadium.continues, 4, "for a continue")
   expect(cpu.settings.characterId, rivalCharacter, "the same rival")
-  expect(scores:getStadiumProgress("3d", veryHard).lastStageBeaten, 14, "the rival has to be beaten again")
+  expect(saved:get("3d", veryHard).lastStageBeaten, 14, "the rival has to be beaten again")
 
   stadium:recordStageResult({human}, 100)
   stadium:recordStageResult({human, cpu}, 100)
@@ -202,8 +204,8 @@ local function bossAndUnlockTest()
   stadium:recordStageResult({human}, 100)
   assert(stadium.complete, "beating the boss finishes Very Hard")
   expect(stadium.unlockedDifficulty, StadiumLadder.SUPER_HARD, "and unlocks Super Hard")
-  assert(Stadium.isUnlocked(scores, "3d", StadiumLadder.SUPER_HARD), "for good")
-  expect(scores:getStadiumProgress("3d", veryHard).bestTime, 1500, "the clear keeps the whole run's time")
+  assert(Stadium.isUnlocked(saved, "3d", StadiumLadder.SUPER_HARD), "for good")
+  expect(saved:get("3d", veryHard).bestTime, 1500, "the clear keeps the whole run's time")
 
   local recap = StadiumRecapScene({stadium = stadium})
   assert(recap.unlockText:find(loc("stadium_difficulty_5"), 1, true), "the recap names the unlocked difficulty")
@@ -211,12 +213,12 @@ local function bossAndUnlockTest()
 end
 
 local function newGameWipesTheRunTest()
-  local scores = createUnsavedScores()
-  scores:saveStadiumRun("2d", StadiumLadder.EASY, 5, 2, 100)
-  local stadium = Stadium.create(StadiumLadder.EASY, GameModes.IDs.ONE_PLAYER_STADIUM, {scores = scores})
+  local saved = createUnsavedProgress()
+  saved:saveRun("2d", StadiumLadder.EASY, 5, 2, 100)
+  local stadium = Stadium.create(StadiumLadder.EASY, GameModes.IDs.ONE_PLAYER_STADIUM, {progress = saved})
   expect(stadium.stageIndex, 1, "a new game starts at stage 1")
   expect(stadium.continues, 0, "without continues")
-  expect(scores:getStadiumProgress("2d", StadiumLadder.EASY).lastStageBeaten, 0, "and forgets the saved run")
+  expect(saved:get("2d", StadiumLadder.EASY).lastStageBeaten, 0, "and forgets the saved run")
   stadium:shutdown()
 end
 
@@ -232,21 +234,21 @@ end
 
 -- the menu, the character select and the game scene build without a window or a real save
 local function scenesTest()
-  local scores = createUnsavedScores()
-  local menu = StadiumMenu({gameModeId = GameModes.IDs.ONE_PLAYER_STADIUM_3D, scores = scores})
+  local saved = createUnsavedProgress()
+  local menu = StadiumMenu({gameModeId = GameModes.IDs.ONE_PLAYER_STADIUM_3D, progress = saved})
   expect(menu.gameModeId, GameModes.IDs.ONE_PLAYER_STADIUM_3D, "the 3D menu item opens the 3D mode")
   expect(menu.dimension, "3d", "and reads 3D progress")
   assert(not menu:isUnlocked(StadiumLadder.VERY_HARD), "Very Hard is locked")
   menu.difficultyStepper:setState(StadiumLadder.EASY)
   expect(menu.resumeItem, nil, "nothing to resume")
-  scores:saveStadiumRun("3d", StadiumLadder.EASY, 3, 0, 0)
+  saved:saveRun("3d", StadiumLadder.EASY, 3, 0, 0)
   menu:refresh()
   assert(menu.resumeItem, "a saved run can be resumed")
   expect(menu.menu.menuItems[2], menu.resumeItem, "right below the difficulty")
   menu.difficultyStepper:setState(StadiumLadder.VERY_HARD)
   expect(menu.resumeItem, nil, "a locked difficulty has no run")
 
-  local stadium = Stadium.create(StadiumLadder.EASY, GameModes.IDs.ONE_PLAYER_STADIUM_3D, {resume = true, scores = scores})
+  local stadium = Stadium.create(StadiumLadder.EASY, GameModes.IDs.ONE_PLAYER_STADIUM_3D, {resume = true, progress = saved})
   GAME.battleRoom = stadium
   local characterSelect = CharacterSelectStadium({battleRoom = stadium})
   local info = characterSelect.ui.stadiumInfo.text
@@ -296,8 +298,8 @@ end
 -- a whole match of the room, the PPL CPU against an idle player, through ClientMatch as the game runs it
 ---@param gameModeId GameModeID
 local function realMatchTest(gameModeId)
-  local scores = createUnsavedScores()
-  local stadium = Stadium.create(StadiumLadder.HARD, gameModeId, {scores = scores})
+  local saved = createUnsavedProgress()
+  local stadium = Stadium.create(StadiumLadder.HARD, gameModeId, {progress = saved})
   stadium:setStage(14)
   -- a fixed seed instead of the room's random one keeps the game, and so the test, the same every run
   stadium.panelSource = GeneratorSource(4321, true)
