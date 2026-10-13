@@ -160,14 +160,25 @@ local function createCpuMatch(gameModeId, cpuLevels, frames)
   return scene
 end
 
+-- Scores for the harness, which never touches the player's save
+---@return Scores
+local function createUnsavedScores()
+  local scores = Scores()
+  scores.saveToFile = function() end
+  return scores
+end
+
 -- a Stadium match as the game runs it, the PPL CPU against an idle player, run for a while to show the HUD
 ---@param gameModeId GameModeID
 ---@param frames integer
+---@param keepCard boolean? leave the pre-match card up instead of starting the match
 ---@return GameBase scene
-local function createStadiumMatch(gameModeId, frames)
-  local scores = Scores()
-  -- the harness never touches the player's save
-  scores.saveToFile = function() end
+local function createStadiumMatch(gameModeId, frames, keepCard)
+  -- a fresh save has no name yet; the game asks for one on the first start
+  if GAME.localPlayer.name == "" then
+    GAME.localPlayer.name = "Player"
+  end
+  local scores = createUnsavedScores()
   local stadium = Stadium.create(StadiumLadder.HARD, gameModeId, {scores = scores})
   stadium:setStage(4)
   stadium.continues = 2
@@ -181,6 +192,9 @@ local function createStadiumMatch(gameModeId, frames)
   match:start()
   local scene = require("client.src.scenes.Game1pStadium")({match = match})
   scene:load()
+  if not keepCard then
+    scene:closeCard()
+  end
   for _ = 1, frames do
     match:run()
   end
@@ -494,6 +508,25 @@ local shots = {
       return createStadiumMatch(GameModes.IDs.ONE_PLAYER_STADIUM_3D, 900)
     end
   },
+  {
+    name = "stadium_card.png",
+    prepare = function()
+      return createStadiumMatch(GameModes.IDs.ONE_PLAYER_STADIUM, 0, true)
+    end
+  },
+  {
+    -- a first Hard clear, which opens Very Hard
+    name = "stadium_recap.png",
+    prepare = function()
+      local stadium = Stadium.create(StadiumLadder.HARD, GameModes.IDs.ONE_PLAYER_STADIUM, {scores = createUnsavedScores()})
+      GAME.battleRoom = stadium
+      stadium.continues = 3
+      while not stadium.complete do
+        stadium:recordStageResult({GAME.localPlayer}, 3600)
+      end
+      return require("client.src.scenes.StadiumRecapScene")({stadium = stadium})
+    end
+  },
   -- the live_ shots get everything from the engine's 3D rules and scripted inputs; nothing is placed by hand
   -- beyond a starting board
   {
@@ -675,7 +708,12 @@ function love.draw()
   end
   love.graphics.setCanvas()
   savePng(love.graphics.readbackTexture(canvas), shot.name)
-  currentScene.match:deinit()
+  if currentScene.match then
+    currentScene.match:deinit()
+  end
+  if GAME.battleRoom then
+    GAME.battleRoom:shutdown()
+  end
 end
 
 function love.errorhandler(msg)

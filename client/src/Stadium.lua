@@ -164,12 +164,15 @@ function Stadium:getStage()
   return self.ladder.stages[self.stageIndex]
 end
 
+-- The opponent wears a character and goes by its name, the way PPL's name bar shows the trainer; the stage title
+-- has its own place in the HUD.
 function Stadium:refreshOpponentCharacter()
   local candidates = Stadium.getOpponentCandidates(GAME.localPlayer.settings.characterId)
   local characterId = Stadium.getOpponentCharacter(candidates, self:getStage())
   if characterId ~= self.cpuPlayer.settings.characterId then
     self.cpuPlayer:setCharacter(characterId)
   end
+  self.cpuPlayer.name = characters[characterId].display_name
 end
 
 ---@param index integer
@@ -182,7 +185,6 @@ function Stadium:setStage(index)
   GAME.localPlayer:setLevelData(LevelPresets.getModern(stage.level))
   self.cpuPlayer:setCpu(CPU_NAME, stage.cpuOptions)
   self.cpuPlayer:copyLevelFrom(GAME.localPlayer)
-  self.cpuPlayer.name = Stadium.getStageTitle(stage)
   self:refreshOpponentCharacter()
 end
 

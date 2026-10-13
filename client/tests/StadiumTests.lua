@@ -10,6 +10,7 @@ local StadiumMenu = require("client.src.scenes.StadiumMenu")
 local CharacterSelectStadium = require("client.src.scenes.CharacterSelectStadium")
 local Game1pStadium = require("client.src.scenes.Game1pStadium")
 local StadiumRecapScene = require("client.src.scenes.StadiumRecapScene")
+local input = require("client.src.inputManager")
 
 ---@param actual any
 ---@param expected any
@@ -118,7 +119,7 @@ local function stageFlowTest()
   expect(human.settings.level, 2, "Normal plays level 2")
   expect(cpu.settings.level, 2, "on both sides")
   expect(cpu.settings.levelData.startingSpeed, LevelPresets.getModern(2).startingSpeed, "with level 2's data")
-  expect(cpu.name, loc("stadium_title_rival"), "the CPU is named after its stage")
+  expect(cpu.name, characters[cpu.settings.characterId].display_name, "the CPU goes by its character's name")
   expect(stadium.stageIndex, 1, "a new game starts at stage 1")
 
   stadium:recordStageResult({human}, 600)
@@ -185,6 +186,7 @@ local function bossAndUnlockTest()
   if #candidates > 1 then
     assert(cpu.settings.characterId ~= rivalCharacter, "the boss is not the rival")
   end
+  expect(cpu.name, characters[cpu.settings.characterId].display_name, "the name bar follows the character")
 
   stadium:recordStageResult({cpu}, 100)
   expect(stadium.stageIndex, 15, "losing the boss goes back to the rival")
@@ -265,6 +267,27 @@ local function scenesTest()
   expect(game.stageCount, 11, "out of the difficulty's stages")
   -- the HUD reads the room, so drawing it once catches a field it can't find
   game:drawHUD()
+
+  -- the match waits on its first frame behind the pre-match card, which Swap or Start closes early
+  assert(game.cardVisible, "the match opens on the pre-match card")
+  game:drawCard()
+  game:update(1)
+  assert(game.cardVisible, "the card stays up without a press")
+  expect(match.stacks[1].engine.clock, 0, "and the match waits")
+  input.isDown["MenuSelect"] = true
+  game:update(0.1)
+  input.isDown["MenuSelect"] = nil
+  assert(not game.cardVisible, "a press closes the card")
+  local unattended = Game1pStadium({match = match})
+  unattended:update(3)
+  assert(not unattended.cardVisible, "the card closes by itself")
+
+  -- a win names the next stage
+  match.getWinners = function()
+    return {human}
+  end
+  game:customGameOverSetup()
+  expect(game.text, loc("stadium_stage_beaten", "Gym 3", "Gym 4"), "the result line after a win")
   match:deinit()
   stadium:shutdown()
   human:setCharacter(selectedCharacterId)
