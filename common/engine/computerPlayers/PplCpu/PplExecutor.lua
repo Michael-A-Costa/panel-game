@@ -9,7 +9,7 @@ local PplBoard = require("common.engine.computerPlayers.PplCpu.PplBoard")
 -- - a swap right after a swap is denied while the first is queued: it waits a frame;
 -- - whether a swap is refused is decided with the stack's own canSwap; if the stack still denies it, the CPU
 --   learns it next frame (observe);
--- - a manual raise is held until the stack's manual raise is over.
+-- - a manual raise is held until the stack's manual raise is over, and never started on a topped out stack.
 -- Nothing here writes to the stack.
 
 local IDLE = KeyDataEncoding.idle
@@ -121,6 +121,12 @@ local function runMove(board, brain, move)
     if board.raise then
       return IDLE, false
     end
+    if board.stack:isToppedOut() then
+      -- PA ends the game on a manual raise of a topped out stack, where PPL's RaiseBlocks only refuses it while the
+      -- well is dead. Refused like a raise the busy field cancels: the plan is dropped and the CPU goes on digging
+      brain:clearQueues()
+      return IDLE, false
+    end
     brain.raising = true
     return RAISE, true
   elseif move == 8 then
@@ -154,7 +160,9 @@ function PplExecutor.observe(board, brain)
   end
 
   if brain.raising and not board.raise then
-    -- PPL: a finished raise drops every plan (AIMove, AI-SPEC §1.7)
+    -- PPL drops the plan only when the busy field cancels a raise and keeps it when the raise reaches its row
+    -- (AI-SPEC §1.7). Here every raise drops it: PA ignores a raise pressed before the last one's row is in, and
+    -- waiting for that froze the CPU under garbage (docs/stadium/BALANCE.md)
     brain.raising = false
     brain:clearQueues()
   end

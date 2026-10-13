@@ -410,6 +410,22 @@ function PplGarbage.chainPack(board, brain)
   return false
 end
 
+-- The top of the tallest column anywhere on the tower, garbage included: 1 + the highest occupied row.
+---@param board PplBoard
+---@return integer
+local function towerHeight(board)
+  local height = 0
+  for column = 0, board.width - 1 do
+    for row = ROWS - 1, height, -1 do
+      if board:type(row, column) ~= EMPTY then
+        height = row + 1
+        break
+      end
+    end
+  end
+  return height
+end
+
 -- AIVolumeCheck (lastPlan 0x32 / 0x33 / 0x34, ai.c:1508), AI-SPEC §2.5. skipFlatten is PPL's `exit` argument:
 -- true runs only the raise logic. With character bit 0x02 a low stack is raised (command 12, PA's manual raise),
 -- also under garbage that sits low; otherwise the top panel of the tallest column is pushed into a hole beside it
@@ -428,8 +444,15 @@ function PplGarbage.volumeCheck(board, brain, skipFlatten)
   end
 
   if brain:hasCharacter(RAISE) then
+    -- A raise lifts the whole tower, but AIScrollCheck measures only the 6 columns in view (AI-SPEC §5), so PPL's
+    -- logic raises the tower whenever the CPU looks at a low part of it and tops out on the other 12 columns. On the
+    -- tower the tallest column decides instead (Stadium 3D is ours, like the board-column commands); 2D is unchanged.
+    local raiseHeight = highest
+    if board.cylinder then
+      raiseHeight = math.max(highest, towerHeight(board))
+    end
     if brain.garbageRow == -1 then
-      local height = highest
+      local height = raiseHeight
       -- cursor.state 3 counts as a full stack (AI-SPEC §8 question 6); PA's board never reports it
       if board.cursorState == 3 then
         height = ROWS
@@ -458,7 +481,7 @@ function PplGarbage.volumeCheck(board, brain, skipFlatten)
       if board.cursorState == 3 then
         top = ROWS
       end
-      if highest < RAISE_HEIGHT_LIMIT and top < GARBAGE_RAISE_LIMIT then
+      if raiseHeight < RAISE_HEIGHT_LIMIT and top < GARBAGE_RAISE_LIMIT then
         brain:addCommand(12)
         brain:addCommand(1, brain.cursorY - 1)
         brain:addCommand(10)

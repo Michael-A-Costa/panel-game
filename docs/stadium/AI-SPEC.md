@@ -396,7 +396,7 @@ function AIMove(well, cursor, brain, num)
     if well.raise < 0 then well.raise = well.raise + 1 end
     if well.raise > 0 then
       RaiseBlocks(well, cursor)
-      if well.raise == 0 then clearQueues(brain) end                -- a finished raise drops every plan
+      if well.raise == 0 then clearQueues(brain) end                -- a cancelled raise drops every plan
       return
     end
   end
@@ -410,6 +410,12 @@ function AIMove(well, cursor, brain, num)
   end
 end
 ```
+
+RaiseBlocks (`src/main/animate.c:61-112`) **[R]** sets `raise = 0` only when it cancels the raise (`cursor.state ≠ 0`,
+`cursor.waiting > 0` or a swap running); a raise that reaches the next row sets `raise = −4`, which counts back to 0
+over 4 frames while moves run. So a finished raise keeps the plan (the next command 12 raises again), and only a
+cancelled one drops it. During `state.death` RaiseBlocks does nothing and the raise waits. The port drops the plan
+after every raise and refuses a raise on a topped out stack (PA would end the game): `docs/stadium/BALANCE.md`.
 
 Timing, all **[R]** from the above:
 
