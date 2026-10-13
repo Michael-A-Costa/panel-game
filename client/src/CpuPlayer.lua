@@ -2,8 +2,9 @@ local class = require("common.lib.class")
 local consts = require("common.engine.consts")
 local Player = require("client.src.Player")
 local ComputerPlayer = require("common.engine.computerPlayers.ComputerPlayer")
--- registers itself with ComputerPlayer
+-- each registers itself with ComputerPlayer
 require("common.engine.computerPlayers.SimpleCpu.SimpleCpu")
+require("common.engine.computerPlayers.PplCpu.PplCpu")
 
 local DEFAULT_CPU = "SimpleCpu"
 
