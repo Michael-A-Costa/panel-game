@@ -27,6 +27,7 @@ local CPU_NAME = "PplCpu"
 ---@field complete boolean the last stage was beaten
 ---@field unlockedDifficulty integer? the difficulty this run's clear unlocked, for the recap
 ---@field cpuPlayer CpuPlayer
+---@field opponentCandidates string[] the characters the run's opponents wear, from Stadium.getOpponentCandidates
 ---@field stadiumProgress StadiumProgress
 ---@overload fun(mode: GameMode, gameScene: table?, difficulty: integer, options: StadiumOptions): Stadium
 local Stadium
@@ -64,7 +65,9 @@ function(self, mode, gameScene, difficulty, options)
 
   self.cpuPlayer = CpuPlayer("")
   self:addPlayer(self.cpuPlayer)
-  -- the opponent's character depends on the player's (see Stadium.getOpponentCandidates)
+  -- fixed for the run, so the rival and the boss stay who they are
+  self.opponentCandidates = Stadium.getOpponentCandidates()
+  -- only a stage whose opponent wears the player's pick changes with it (see Stadium.getStandIn)
   GAME.localPlayer:connectSignal("characterIdChanged", self, self.refreshOpponentCharacter)
   self:restoreInputConfigurations()
   self:setStage(startStage)
@@ -110,31 +113,22 @@ function Stadium.getStageTitle(stage)
   end
 end
 
--- The characters an opponent may wear, in the order of the character select: every visible character except bundles
--- and the player's own. Only if that leaves nothing, bundles' first characters, and then the player's own, count.
----@param playerCharacterId string?
+-- The characters an opponent may wear, in the order of the character select: every visible character except
+-- bundles, or the bundles' first characters if that leaves nothing. It doesn't depend on the player's pick, so a run's
+-- cast stays the same while the player changes characters.
 ---@return string[]
-function Stadium.getOpponentCandidates(playerCharacterId)
+function Stadium.getOpponentCandidates()
   local candidates = {}
   for _, characterId in ipairs(visibleCharacters) do
-    if characterId ~= playerCharacterId and not characters[characterId]:isBundle() then
+    if not characters[characterId]:isBundle() then
       candidates[#candidates + 1] = characterId
     end
   end
 
   if #candidates == 0 then
     for _, characterId in ipairs(visibleCharacters) do
-      if characters[characterId]:isBundle() then
-        characterId = characters[characterId].subIds[1]
-      end
-      if characterId ~= playerCharacterId then
-        candidates[#candidates + 1] = characterId
-      end
+      candidates[#candidates + 1] = characters[characterId].subIds[1]
     end
-  end
-
-  if #candidates == 0 and playerCharacterId then
-    candidates[1] = playerCharacterId
   end
 
   return candidates
@@ -160,6 +154,38 @@ function Stadium.getOpponentCharacter(candidates, stage)
   end
 end
 
+-- The character a stage's opponent wears against this player: its own, unless the player picked that one. Then the
+-- first in-between candidate the player didn't pick stands in, the same one every time, so a stand-in is never the
+-- rival or the boss while there are others. With a single candidate it is a mirror match.
+---@param candidates string[] from Stadium.getOpponentCandidates
+---@param characterId string the stage's own opponent, from Stadium.getOpponentCharacter
+---@param playerCharacterId string?
+---@return string characterId
+function Stadium.getStandIn(candidates, characterId, playerCharacterId)
+  if characterId ~= playerCharacterId then
+    return characterId
+  end
+  for i = 2, #candidates - 1 do
+    if candidates[i] ~= playerCharacterId then
+      return candidates[i]
+    end
+  end
+  for _, candidate in ipairs(candidates) do
+    if candidate ~= playerCharacterId then
+      return candidate
+    end
+  end
+  return characterId
+end
+
+-- Every Stadium match runs in Game1pStadium: the PortraitGame BattleRoom gives touch players has no pre-match card,
+-- HUD or recap, and would leave a cleared ladder sitting on its last stage.
+---@param match ClientMatch
+---@return GameBase
+function Stadium:createScene(match)
+  return self.gameScene({match = match})
+end
+
 ---@return StadiumStage
 function Stadium:getStage()
   return self.ladder.stages[self.stageIndex]
@@ -168,8 +194,8 @@ end
 -- The opponent wears a character and goes by its name, the way PPL's name bar shows the trainer; the stage title
 -- has its own place in the HUD.
 function Stadium:refreshOpponentCharacter()
-  local candidates = Stadium.getOpponentCandidates(GAME.localPlayer.settings.characterId)
-  local characterId = Stadium.getOpponentCharacter(candidates, self:getStage())
+  local cast = Stadium.getOpponentCharacter(self.opponentCandidates, self:getStage())
+  local characterId = Stadium.getStandIn(self.opponentCandidates, cast, GAME.localPlayer.settings.characterId)
   if characterId ~= self.cpuPlayer.settings.characterId then
     self.cpuPlayer:setCharacter(characterId)
   end

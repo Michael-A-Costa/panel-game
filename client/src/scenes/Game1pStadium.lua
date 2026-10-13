@@ -13,7 +13,7 @@ local StadiumRecapScene = require("client.src.scenes.StadiumRecapScene")
 ---@field stadium Stadium the room this match belongs to
 ---@field stadiumStage StadiumStage the stage this match is played on; the room moves on to the next one when it ends
 ---@field stageTitle string
----@field stageCount integer
+---@field stageLabel string "Stage x/N"
 ---@field cardVisible boolean the pre-match card is up and the match hasn't started yet
 ---@field cardTime number seconds the card has been up
 local Game1pStadium = class(
@@ -24,7 +24,7 @@ function(self, sceneParams)
   self.stadium = stadium
   self.stadiumStage = stadium:getStage()
   self.stageTitle = Stadium.getStageTitle(self.stadiumStage)
-  self.stageCount = #stadium.ladder.stages
+  self.stageLabel = loc("stadium_stage", tostring(self.stadiumStage.index), tostring(#stadium.ladder.stages))
   self.cardVisible = true
   self.cardTime = 0
 end,
@@ -115,7 +115,7 @@ function Game1pStadium:drawCard()
   GraphicsUtil.drawRectangle("fill", 0, 0, width, consts.CANVAS_HEIGHT, 0, 0, 0, 0.6)
 
   GraphicsUtil.printf(self.stadium.difficultyName, 0, 40, width, "center", nil, nil, 10)
-  GraphicsUtil.printf(loc("stadium_stage", tostring(self.stadiumStage.index), tostring(self.stageCount)), 0, 85, width, "center", nil, nil, 4)
+  GraphicsUtil.printf(self.stageLabel, 0, 85, width, "center", nil, nil, 4)
   GraphicsUtil.printf(self.stageTitle, 0, 115, width, "center", nil, nil, 30)
 
   local centerX = width / 2
@@ -151,8 +151,8 @@ end
 
 function Game1pStadium:startNextScene()
   -- match:deinit is the responsibility of the one switching out of the game scene
-  local stadium = GAME.battleRoom
-  if stadium and stadium.complete then
+  local stadium = self.stadium
+  if stadium.complete then
     GAME.navigationStack:replace(StadiumRecapScene({stadium = stadium}), nil, function()
       self.match:deinit()
     end)
@@ -165,12 +165,7 @@ function Game1pStadium:startNextScene()
 end
 
 function Game1pStadium:drawHUD()
-  local stadium = GAME.battleRoom
-  if not stadium then
-    return
-  end
-  ---@cast stadium Stadium
-
+  local stadium = self.stadium
   local drawX = consts.CANVAS_WIDTH / 2
   GraphicsUtil.drawRectangle("fill", drawX - HUD_WIDTH / 2, HUD_TOP, HUD_WIDTH, consts.CANVAS_HEIGHT - HUD_TOP, 0, 0, 0, 0.5)
 
@@ -180,7 +175,7 @@ function Game1pStadium:drawHUD()
   GraphicsUtil.printf(stadium.difficultyName, left, drawY + 26, TEXT_LIMIT, "center", nil, nil, 10)
 
   drawY = drawY + 70
-  GraphicsUtil.printf(loc("stadium_stage", tostring(self.stadiumStage.index), tostring(self.stageCount)), left, drawY, TEXT_LIMIT, "center", nil, nil, 10)
+  GraphicsUtil.printf(self.stageLabel, left, drawY, TEXT_LIMIT, "center", nil, nil, 10)
   GraphicsUtil.printf(self.stageTitle, left, drawY + 26, TEXT_LIMIT, "center", nil, nil, 4)
 
   drawY = drawY + 70

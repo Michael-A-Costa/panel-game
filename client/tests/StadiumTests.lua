@@ -11,6 +11,8 @@ local CharacterSelectStadium = require("client.src.scenes.CharacterSelectStadium
 local Game1pStadium = require("client.src.scenes.Game1pStadium")
 local StadiumRecapScene = require("client.src.scenes.StadiumRecapScene")
 local input = require("client.src.inputManager")
+local DebugSettings = require("client.src.debug.DebugSettings")
+local BattleRoom = require("client.src.BattleRoom")
 
 ---@param actual any
 ---@param expected any
@@ -96,14 +98,46 @@ local function opponentCharacterTest()
   expect(Stadium.getOpponentCharacter({"a", "b"}, stages[16]), "b", "two characters still make a separate boss")
   expect(Stadium.getOpponentCharacter({"a"}, stages[7]), "a", "one character plays everyone")
 
-  local playerCharacterId = GAME.localPlayer.settings.characterId
-  local others = Stadium.getOpponentCandidates(playerCharacterId)
-  assert(#others > 0, "there is always someone to play")
-  if #others > 1 then
-    for _, characterId in ipairs(others) do
-      assert(characterId ~= playerCharacterId, "the opponent never wears the player's character")
-    end
+  -- only a slot that wears the player's pick changes, always to the same stand-in
+  expect(Stadium.getStandIn(candidates, "c", "a"), "c", "no clash keeps the stage's own")
+  expect(Stadium.getStandIn(candidates, "a", "a"), "b", "the first in-between candidate stands in for the rival")
+  expect(Stadium.getStandIn(candidates, "e", "e"), "b", "and for the boss, so it is never the rival")
+  expect(Stadium.getStandIn(candidates, "b", "b"), "c", "a stage the stand-in plays itself gets the next one")
+  expect(Stadium.getStandIn({"a", "b"}, "b", "b"), "a", "two characters leave no choice")
+  expect(Stadium.getStandIn({"a"}, "a", "a"), "a", "one character is a mirror match")
+
+  assert(#Stadium.getOpponentCandidates() > 0, "there is always someone to play")
+end
+
+-- the cast of a run stays put while the player changes characters, e.g. a random pick re-rolled after a match
+local function castStaysForTheRunTest()
+  local candidates = Stadium.getOpponentCandidates()
+  if #candidates < 4 then
+    return
   end
+  local human = GAME.localPlayer
+  local selectedCharacterId = human.settings.selectedCharacterId
+  human:setCharacter(candidates[2])
+  local stadium = Stadium.create(StadiumLadder.VERY_HARD, GameModes.IDs.ONE_PLAYER_STADIUM, {progress = createUnsavedProgress()})
+  local cpu = stadium.cpuPlayer
+  expect(cpu.settings.characterId, candidates[1], "the rival")
+
+  stadium:setStage(16)
+  local boss = cpu.settings.characterId
+  human:setCharacter(candidates[3])
+  expect(cpu.settings.characterId, boss, "the boss stays when the player changes characters")
+
+  stadium:setStage(15)
+  expect(cpu.settings.characterId, candidates[1], "the rival comes back as the same character")
+  human:setCharacter(candidates[1])
+  expect(cpu.settings.characterId, candidates[2], "a clash with the player's pick gets the stand-in")
+  stadium:setStage(1)
+  expect(cpu.settings.characterId, candidates[2], "the same stand-in on every rival stage")
+  stadium:setStage(16)
+  expect(cpu.settings.characterId, boss, "the boss isn't touched by it")
+
+  stadium:shutdown()
+  human:setCharacter(selectedCharacterId)
 end
 
 -- the run of one difficulty: win, draw, loss and abort, then up to the end of a ladder without a boss
@@ -185,9 +219,12 @@ local function bossAndUnlockTest()
   stadium:recordStageResult({human}, 100)
   expect(stadium.stageIndex, 16, "the rival leads to the boss")
   expect(stadium:getStage().role, "boss", "stage 16 is the boss")
-  local candidates = Stadium.getOpponentCandidates(human.settings.characterId)
-  expect(cpu.settings.characterId, Stadium.getOpponentCharacter(candidates, stadium:getStage()), "the boss's character")
-  if #candidates > 1 then
+  local candidates = Stadium.getOpponentCandidates()
+  local bossCharacter = Stadium.getOpponentCharacter(candidates, stadium:getStage())
+  expect(cpu.settings.characterId, Stadium.getStandIn(candidates, bossCharacter, human.settings.characterId),
+         "the boss's character")
+  -- with two characters, one of them the player's, the rival's stand-in can only be the boss
+  if #candidates > 2 then
     assert(cpu.settings.characterId ~= rivalCharacter, "the boss is not the rival")
   end
   expect(cpu.name, characters[cpu.settings.characterId].display_name, "the name bar follows the character")
@@ -268,7 +305,7 @@ local function scenesTest()
   -- without load, which would pull in the stage's and characters' music and art
   local game = Game1pStadium({match = match})
   expect(game.stadiumStage.index, 4, "the game shows the stage it plays")
-  expect(game.stageCount, 11, "out of the difficulty's stages")
+  expect(game.stageLabel, loc("stadium_stage", "4", "11"), "out of the difficulty's stages")
   -- the HUD reads the room, so drawing it once catches a field it can't find
   game:drawHUD()
 
@@ -285,6 +322,19 @@ local function scenesTest()
   local unattended = Game1pStadium({match = match})
   unattended:update(3)
   assert(not unattended.cardVisible, "the card closes by itself")
+
+  -- a touch player gets the Stadium scene as well, where BattleRoom would hand out PortraitGame
+  local inputMethod = human.settings.inputMethod
+  local simulateMobileOS = DebugSettings.simulateMobileOS
+  human:setInputMethod("touch")
+  ---@diagnostic disable-next-line: duplicate-set-field
+  DebugSettings.simulateMobileOS = function()
+    return true
+  end
+  expect(BattleRoom.createScene(stadium, match).name, "PortraitGame", "a plain room's touch scene")
+  expect(stadium:createScene(match).name, "Game1pStadium", "Stadium keeps its own scene")
+  DebugSettings.simulateMobileOS = simulateMobileOS
+  human:setInputMethod(inputMethod)
 
   -- a win names the next stage
   match.getWinners = function()
@@ -356,6 +406,7 @@ end
 
 ladderDataTest()
 opponentCharacterTest()
+keepingLocalPlayerLevel(castStaysForTheRunTest)
 keepingLocalPlayerLevel(stageFlowTest)
 keepingLocalPlayerLevel(bossAndUnlockTest)
 keepingLocalPlayerLevel(newGameWipesTheRunTest)
