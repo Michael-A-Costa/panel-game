@@ -1466,6 +1466,16 @@ function Stack:getGarbagePlacement(garbage)
   end
 end
 
+---@return integer firstViewColumn
+---@return integer lastViewColumn the view columns in which new shock panels may enter
+function Stack:getShockPanelViewColumns()
+  if self.cylinder then
+    return self:getCylinderShockPanelViewColumns()
+  else
+    return 0, self.width - 1
+  end
+end
+
 function Stack:getGarbageSpawnColumn(garbageWidth)
   local columns = self.garbageSizeDropColumnMaps[garbageWidth]
   local index = self.currentGarbageDropColumnIndexes[garbageWidth]

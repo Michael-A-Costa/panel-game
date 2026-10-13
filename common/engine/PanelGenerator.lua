@@ -51,7 +51,7 @@ end
 ---@param rowWidth integer
 ---@param ncolors integer
 ---@param previousRow string
----@param isRing boolean? if the row is a cylinder's, whose last panel neighbours its first
+---@param isRing boolean? if the row is a wrapped board's, whose last panel neighbours its first
 ---@return string newPanels
 function PanelGenerator:generatePanels(rowWidth, ncolors, previousRow, isRing)
   -- logger.info("generating panels with seed: " .. PanelGenerator.rng:getSeed() ..

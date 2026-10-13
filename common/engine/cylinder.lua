@@ -3,14 +3,17 @@ local consts = require("common.engine.consts")
 local Stack = require("common.engine.Stack")
 
 -- Rules of Pokémon Puzzle League's 3D mode that go beyond its board being wrapped: the tower turning under the cursor,
--- the countdown intro and where incoming garbage lands. Generic code reaches them through Stack methods that check
--- stack.cylinder; the shape of the board itself is the topology in Stack.lua (Stack.wraps).
+-- the countdown intro and where incoming garbage and new shock panels land. Generic code reaches them through Stack
+-- methods that check stack.cylinder; the shape of the board itself is the topology in Stack.lua (Stack.wraps).
 
 -- view columns where it starts the chain garbage it reshapes for the cylinder (attack3d.c)
 local CYLINDER_CHAIN_X2_VIEW_COLUMN = 2 -- 6 wide over the middle of the front
 local CYLINDER_CHAIN_X3_VIEW_COLUMN = 17 -- 12 wide, wrapping round to view column 10
 local CYLINDER_FULL_RING_VIEW_COLUMN = 14
 local CYLINDER_MAX_FULL_RING_ROWS = 10
+-- view columns in which new shock panels enter, in front of the player (init3d.c)
+local CYLINDER_FIRST_SHOCK_VIEW_COLUMN = 1
+local CYLINDER_LAST_SHOCK_VIEW_COLUMN = 5
 
 -- Starts turning the cylinder by one column. As in Pokémon Puzzle League a press during a turn is dropped, so a held
 -- direction, repeating every 3 frames, turns it a column every 6.
@@ -62,4 +65,10 @@ function Stack:getCylinderGarbagePlacement(garbage)
     local height = math.min(garbage.height - 2, CYLINDER_MAX_FULL_RING_ROWS)
     return self.width, height, self:viewToBoardColumn(CYLINDER_FULL_RING_VIEW_COLUMN)
   end
+end
+
+---@return integer firstViewColumn
+---@return integer lastViewColumn
+function Stack:getCylinderShockPanelViewColumns()
+  return CYLINDER_FIRST_SHOCK_VIEW_COLUMN, CYLINDER_LAST_SHOCK_VIEW_COLUMN
 end
