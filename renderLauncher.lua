@@ -73,6 +73,9 @@ local KeyDataEncoding = require("common.data.KeyDataEncoding")
 local ClientMatch = require("client.src.ClientMatch")
 local Player = require("client.src.Player")
 local CpuPlayer = require("client.src.CpuPlayer")
+local StadiumLadder = require("common.data.StadiumLadder")
+local Scores = require("client.src.scores")
+local Stadium = require("client.src.Stadium")
 
 local IDLE = KeyDataEncoding.base64encode[1]
 local SWAP = KeyDataEncoding.base64encode[16 + 1]
@@ -150,6 +153,33 @@ local function createCpuMatch(gameModeId, cpuLevels, frames)
   local match = ClientMatch.createFromGameMode(players, GameModes.getPreset(gameModeId), GeneratorSource(4242, true), false)
   match:start()
   local scene = require("client.src.scenes.GameBase")({match = match})
+  scene:load()
+  for _ = 1, frames do
+    match:run()
+  end
+  return scene
+end
+
+-- a Stadium match as the game runs it, the PPL CPU against an idle player, run for a while to show the HUD
+---@param gameModeId GameModeID
+---@param frames integer
+---@return GameBase scene
+local function createStadiumMatch(gameModeId, frames)
+  local scores = Scores()
+  -- the harness never touches the player's save
+  scores.saveToFile = function() end
+  local stadium = Stadium.create(StadiumLadder.HARD, gameModeId, {scores = scores})
+  stadium:setStage(4)
+  stadium.continues = 2
+  stadium.panelSource = GeneratorSource(4242, true)
+  if not GAME.localPlayer.inputConfiguration then
+    stadium:claimDeviceForPlayer(GAME.localPlayer, GAME.input:getAssignableDevices()[1])
+  end
+  GAME.battleRoom = stadium
+
+  local match = ClientMatch.createFromBattleRoom(stadium)
+  match:start()
+  local scene = require("client.src.scenes.Game1pStadium")({match = match})
   scene:load()
   for _ = 1, frames do
     match:run()
@@ -450,6 +480,18 @@ local shots = {
     name = "cpu_3d_vs_cpu.png",
     prepare = function()
       return createCpuMatch(GameModes.IDs.ONE_PLAYER_VS_CPU_3D, {3, 8}, 1500)
+    end
+  },
+  {
+    name = "stadium_2d.png",
+    prepare = function()
+      return createStadiumMatch(GameModes.IDs.ONE_PLAYER_STADIUM, 900)
+    end
+  },
+  {
+    name = "stadium_3d.png",
+    prepare = function()
+      return createStadiumMatch(GameModes.IDs.ONE_PLAYER_STADIUM_3D, 900)
     end
   },
   -- the live_ shots get everything from the engine's 3D rules and scripted inputs; nothing is placed by hand

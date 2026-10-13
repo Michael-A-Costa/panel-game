@@ -1,4 +1,5 @@
 local Scores = require("client.src.scores")
+local StadiumLadder = require("common.data.StadiumLadder")
 
 local function record(timestamp)
   return {inputs = "A", timestamp = timestamp, success = true}
@@ -55,3 +56,88 @@ recordsUnderAnOldUUIDMoveToThePuzzle()
 carriedRecordsGoBeforeTheNewOnes()
 recordsUnderEveryOldUUIDMoveInListOrder()
 nothingToCarryMovesNothing()
+
+-- a version 5 file has no Stadium progress: it loads with fresh progress everywhere, keeps the rest and is
+-- marked for rewriting as version 6
+local function version5GainsStadiumProgress()
+  local data = json.decode(json.encode(Scores()))
+  data.version = 5
+  data.stadium = nil
+  data.vsSelf[3].record = 1234
+
+  local scores, upgraded = Scores.createFromScoreData(data)
+
+  assert(upgraded, "an older file gets rewritten")
+  assert(scores.version == 6)
+  assert(scores.vsSelf[3].record == 1234, "the older records stay")
+  for _, dimension in ipairs({"2d", "3d"}) do
+    for difficulty = 1, StadiumLadder.DIFFICULTY_COUNT do
+      local progress = scores:getStadiumProgress(dimension, difficulty)
+      assert(progress.lastStageBeaten == 0 and progress.continues == 0 and progress.clears == 0,
+             "fresh progress for " .. dimension .. " difficulty " .. difficulty)
+    end
+  end
+end
+
+-- Scores whose saving is counted instead of writing scores.json
+---@return Scores
+local function createUnsavedScores()
+  local scores = Scores()
+  scores.saveCount = 0
+  scores.saveToFile = function(self)
+    self.saveCount = self.saveCount + 1
+  end
+  return scores
+end
+
+-- runs, clears and their bests are kept per dimension and difficulty and survive the trip through the file
+local function stadiumProgressSurvivesSaving()
+  local scores = createUnsavedScores()
+  scores:saveStadiumRun("2d", 2, 6, 3, 5000)
+  scores:saveStadiumClear("3d", 4, 7, 90000)
+  scores:saveStadiumClear("3d", 4, 2, 95000)
+  scores:saveStadiumRun("3d", 4, 9, 1, 400)
+  assert(scores.saveCount == 4, "every change is saved")
+  scores.saveToFile = nil
+  scores.saveCount = nil
+
+  local loaded, upgraded = Scores.createFromScoreData(json.decode(json.encode(scores)))
+
+  assert(not upgraded, "a current file is not rewritten")
+  local run = loaded:getStadiumProgress("2d", 2)
+  assert(run.lastStageBeaten == 6 and run.continues == 3 and run.time == 5000 and run.clears == 0)
+  local cleared = loaded:getStadiumProgress("3d", 4)
+  assert(cleared.clears == 2, "both clears count")
+  assert(cleared.bestContinues == 2 and cleared.bestTime == 90000, "the bests are kept apart")
+  assert(cleared.lastStageBeaten == 9 and cleared.continues == 1, "with the run started after them")
+  assert(loaded:getStadiumProgress("2d", 4).clears == 0, "2D and 3D are separate")
+end
+
+-- a clear ends the run, so the next game of the difficulty starts at its first stage
+local function clearResetsTheRun()
+  local scores = createUnsavedScores()
+  scores:saveStadiumRun("2d", 1, 10, 4, 3000)
+  scores:saveStadiumClear("2d", 1, 4, 3600)
+
+  local progress = scores:getStadiumProgress("2d", 1)
+  assert(progress.lastStageBeaten == 0 and progress.continues == 0 and progress.time == 0)
+  assert(progress.clears == 1 and progress.bestContinues == 4 and progress.bestTime == 3600)
+end
+
+-- odd values in a hand edited file are skipped field by field instead of breaking the run
+local function malformedStadiumDataIsIgnored()
+  local data = json.decode(json.encode(Scores()))
+  data.stadium = {["2d"] = {{lastStageBeaten = "five", continues = 2}, "nonsense"}, ["3d"] = 7}
+
+  local scores = Scores.createFromScoreData(data)
+
+  local progress = scores:getStadiumProgress("2d", 1)
+  assert(progress.lastStageBeaten == 0 and progress.continues == 2)
+  assert(scores:getStadiumProgress("2d", 2).lastStageBeaten == 0)
+  assert(scores:getStadiumProgress("3d", 1).lastStageBeaten == 0)
+end
+
+version5GainsStadiumProgress()
+stadiumProgressSurvivesSaving()
+clearResetsTheRun()
+malformedStadiumDataIsIgnored()
