@@ -683,3 +683,7 @@ mm_1_time_3d,,1P time attack 3D,1J contre la montre 3D,1J contra o tempo 3D,1P �
 vs_3d,,vs 3D,vs 3D,vs 3D,対 3D,vs 3D,vs 3D,vs 3D,vs 3D
 mm_1_vs_3d,,1P vs yourself 3D,1J contre soi-même 3D,1J vs você mesmo 3D,1P じぶんとのたたかい 3D,1J vs ti mismo 3D,1P gegen dich selbst 3D,1P vs te stesso 3D,1P สู้กับตัวเอง 3D
 mm_1_training_3d,Vs training mode,1P training 3D,Entraînement 1J 3D,treinamento 1P 3D,1P トレーニング 3D,1J entrenamiento 3D,1P Training 3D,Allenamento 1P 3D,1P ฝึกซ้อม 3D
+mm_1_vs_cpu,,1P vs CPU,1J contre CPU,1J vs CPU,1P VS CPU,1J vs CPU,1P gegen CPU,1P vs CPU,1P สู้กับ CPU
+mm_1_vs_cpu_3d,,1P vs CPU 3D,1J contre CPU 3D,1J vs CPU 3D,1P VS CPU 3D,1J vs CPU 3D,1P gegen CPU 3D,1P vs CPU 3D,1P สู้กับ CPU 3D
+cpu_level,,CPU level,Niveau CPU,Nível da CPU,CPUレベル,Nivel de CPU,CPU-Stufe,Livello CPU,ระดับ CPU
+cpu_name,Name of the computer opponent; %1 is its level,CPU Lv%1,CPU Lv%1,CPU Lv%1,CPU Lv%1,CPU Lv%1,CPU Lv%1,CPU Lv%1,CPU Lv%1

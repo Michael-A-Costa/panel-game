@@ -72,6 +72,7 @@ local GeneratorSource = require("common.engine.GeneratorSource")
 local KeyDataEncoding = require("common.data.KeyDataEncoding")
 local ClientMatch = require("client.src.ClientMatch")
 local Player = require("client.src.Player")
+local CpuPlayer = require("client.src.CpuPlayer")
 
 local IDLE = KeyDataEncoding.base64encode[1]
 local SWAP = KeyDataEncoding.base64encode[16 + 1]
@@ -128,6 +129,32 @@ local function createMatch(gameModeId, playerCount, sceneName, withCountdown)
   local scene = require("client.src.scenes." .. sceneName)({match = match})
   scene:load()
   return match, scene
+end
+
+-- a vs CPU match with a CPU on both sides, which ClientMatch drives itself as in the game, run for a while
+---@param gameModeId GameModeID
+---@param cpuLevels integer[]
+---@param frames integer
+---@return GameBase scene
+local function createCpuMatch(gameModeId, cpuLevels, frames)
+  local players = {}
+  for i, cpuLevel in ipairs(cpuLevels) do
+    local player = CpuPlayer(loc("cpu_name", cpuLevel))
+    player:setCpu("SimpleCpu", {level = cpuLevel})
+    player:setLevel(5)
+    player:setLevelData(LevelPresets.getModern(5))
+    player.playerNumber = i
+    players[i] = player
+  end
+
+  local match = ClientMatch.createFromGameMode(players, GameModes.getPreset(gameModeId), GeneratorSource(4242, true), false)
+  match:start()
+  local scene = require("client.src.scenes.GameBase")({match = match})
+  scene:load()
+  for _ = 1, frames do
+    match:run()
+  end
+  return scene
 end
 
 ---@param match ClientMatch
@@ -411,6 +438,18 @@ local shots = {
       local match, scene = createMatch(GameModes.IDs.ONE_PLAYER_ENDLESS, 1, "EndlessGame")
       runFrames(match, 90)
       return scene
+    end
+  },
+  {
+    name = "cpu_2d_vs_cpu.png",
+    prepare = function()
+      return createCpuMatch(GameModes.IDs.ONE_PLAYER_VS_CPU, {3, 8}, 1500)
+    end
+  },
+  {
+    name = "cpu_3d_vs_cpu.png",
+    prepare = function()
+      return createCpuMatch(GameModes.IDs.ONE_PLAYER_VS_CPU_3D, {3, 8}, 1500)
     end
   },
   -- the live_ shots get everything from the engine's 3D rules and scripted inputs; nothing is placed by hand
