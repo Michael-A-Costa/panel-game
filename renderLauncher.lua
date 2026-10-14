@@ -172,14 +172,16 @@ end
 ---@param gameModeId GameModeID
 ---@param frames integer
 ---@param keepCard boolean? leave the pre-match card up instead of starting the match
+---@param storyKey string? the story screen on the card
 ---@return GameBase scene
-local function createStadiumMatch(gameModeId, frames, keepCard)
+local function createStadiumMatch(gameModeId, frames, keepCard, storyKey)
   -- a fresh save has no name yet; the game asks for one on the first start
   if GAME.localPlayer.name == "" then
     GAME.localPlayer.name = "Player"
   end
   local stadium = Stadium.create(StadiumLadder.HARD, gameModeId, {progress = createUnsavedProgress()})
   stadium:setStage(4)
+  stadium.cardStoryKey = storyKey
   stadium.continues = 2
   stadium.panelSource = GeneratorSource(4242, true)
   if not GAME.localPlayer.inputConfiguration then
@@ -511,6 +513,13 @@ local shots = {
     name = "stadium_card.png",
     prepare = function()
       return createStadiumMatch(GameModes.IDs.ONE_PLAYER_STADIUM, 0, true)
+    end
+  },
+  {
+    -- a story screen on the card: the rival back after a loss to the boss
+    name = "stadium_story.png",
+    prepare = function()
+      return createStadiumMatch(GameModes.IDs.ONE_PLAYER_STADIUM, 0, true, "stadium_story_rival_returns")
     end
   },
   {

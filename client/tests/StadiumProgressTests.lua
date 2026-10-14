@@ -106,8 +106,31 @@ local function newerFileIsLeftAlone()
   assert(not written, "the newer file stays as it is")
 end
 
+-- an entered code and the best chain and combo are kept, and a file without them (an older build's) reads as zero
+local function codesAndBestsSurviveSaving()
+  local progress = createUnsavedProgress()
+  progress:enterCode("2d", 4)
+  progress:saveBests("2d", 4, 5, 9)
+  progress:saveBests("2d", 4, 3, 12)
+  local saves = progress.saveCount
+  progress:saveBests("2d", 4, 2, 4)
+  assert(progress.saveCount == saves, "a match below both bests saves nothing")
+
+  local loaded = StadiumProgress.createFromData(roundTrip(progress))
+  local difficultyProgress = loaded:get("2d", 4)
+  assert(difficultyProgress.codeEntered == 1, "the code stays entered")
+  assert(difficultyProgress.bestChain == 5 and difficultyProgress.bestCombo == 12, "each best on its own")
+  assert(loaded:get("3d", 4).codeEntered == 0, "in its dimension only")
+
+  local data = roundTrip(StadiumProgress())
+  data.stadium["2d"][4] = {lastStageBeaten = 3}
+  local older = StadiumProgress.createFromData(data):get("2d", 4)
+  assert(older.lastStageBeaten == 3 and older.codeEntered == 0 and older.bestChain == 0, "older files read fine")
+end
+
 missingFileGivesFreshProgress()
 progressSurvivesSaving()
+codesAndBestsSurviveSaving()
 clearResetsTheRun()
 malformedDataIsIgnored()
 newerFileIsLeftAlone()

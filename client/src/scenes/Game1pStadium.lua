@@ -18,6 +18,7 @@ local StadiumRecapScene = require("client.src.scenes.StadiumRecapScene")
 ---@field stageLabel string "Stage x/N"
 ---@field cardVisible boolean the pre-match card is up and the match hasn't started yet
 ---@field cardTime number seconds the card has been up
+---@field storyText string? PPL's story screen for this stage, shown on the card, which then waits for a press
 ---@field continueMenu Menu PPL's "continue?" after a loss; shown once the player leaves the game over screen
 local Game1pStadium = class(
 ---@param self Game1pStadium
@@ -30,6 +31,10 @@ function(self, sceneParams)
   self.stageLabel = loc("stadium_stage", tostring(self.stadiumStage.index), tostring(#stadium.ladder.stages))
   self.cardVisible = true
   self.cardTime = 0
+  if stadium.cardStoryKey then
+    self.storyText = loc(stadium.cardStoryKey)
+    stadium.cardStoryKey = nil
+  end
 end,
 GameBase)
 
@@ -96,7 +101,9 @@ function Game1pStadium:update(dt)
       self.backgroundImage:update(dt)
     end
     self.cardTime = self.cardTime + dt
-    if self.cardTime >= CARD_SECONDS or (self.cardTime >= CARD_SKIP_DELAY and self:skipPressed()) then
+    -- a story screen waits for the player like PPL's; a plain card closes by itself
+    local timedOut = self.cardTime >= CARD_SECONDS and not self.storyText
+    if timedOut or (self.cardTime >= CARD_SKIP_DELAY and self:skipPressed()) then
       self:closeCard()
     end
     -- the match's frame clock only starts with its first run, so the card's time is not caught up on afterwards
@@ -161,6 +168,12 @@ function Game1pStadium:drawCard()
     end
   end
   GraphicsUtil.printf("VS", 0, PORTRAIT_TOP + PORTRAIT_HEIGHT / 2 - 30, width, "center", nil, nil, 30)
+
+  if self.storyText then
+    local storyTop = nameTop + 40
+    GraphicsUtil.drawRectangle("fill", 0, storyTop - 10, width, consts.CANVAS_HEIGHT - storyTop + 10, 0, 0, 0, 0.7)
+    GraphicsUtil.printf(self.storyText, width / 8, storyTop, width * 3 / 4, "center", nil, nil, 4)
+  end
 end
 
 -- A win names the stage that comes next; the last one leads to the recap, which says the rest. A loss asks PPL's
@@ -169,13 +182,21 @@ function Game1pStadium:customGameOverSetup()
   local winners = self.match:getWinners()
   if #winners == 1 and winners[1].human then
     local nextStage = self.stadium.ladder.stages[self.stadiumStage.index + 1]
-    if nextStage then
+    if self.stadiumStage.beatenKey then
+      -- the scene PPL plays after beating the rival and the wanderers, in place of the result screen
+      self.text = loc(self.stadiumStage.beatenKey)
+    elseif nextStage then
       self.text = loc("stadium_stage_beaten", self.stageTitle, Stadium.getStageTitle(nextStage))
     else
       self.text = loc("stadium_cleared", self.stadium.difficultyName)
     end
   elseif #winners == 1 then
-    self.text = loc("stadium_continue_question")
+    if self.stadiumStage.role == "boss" then
+      -- PPL shows the boss's victory before its continue screen
+      self.text = loc("stadium_story_boss_won") .. "\n" .. loc("stadium_continue_question")
+    else
+      self.text = loc("stadium_continue_question")
+    end
   end
 end
 
@@ -196,8 +217,8 @@ function Game1pStadium:drawEndGameText()
   if self.continueMenu.isVisible then
     local width = consts.CANVAS_WIDTH
     local centerY = consts.CANVAS_HEIGHT / 2
-    GraphicsUtil.drawRectangle("fill", width / 2 - 150, centerY - 110, 300, 200, 0, 0, 0, 0.8)
-    GraphicsUtil.printf(self.text, 0, centerY - 95, width, "center", nil, nil, 10)
+    GraphicsUtil.drawRectangle("fill", width / 2 - 250, centerY - 150, 500, 240, 0, 0, 0, 0.8)
+    GraphicsUtil.printf(self.text, width / 2 - 240, centerY - 135, 480, "center", nil, nil, 4)
   else
     GameBase.drawEndGameText(self)
   end

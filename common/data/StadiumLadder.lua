@@ -15,12 +15,18 @@ local ComputerPlayer = require("common.engine.computerPlayers.ComputerPlayer")
 ---@field role StadiumRole?
 ---@field titleKey string localization key of the stage's title
 ---@field titleNumber integer? fills the title's %1, e.g. the 3 of "Gym 3"
+---@field introKey string? localization key of the story screen PPL shows on reaching the stage
+---@field beatenKey string? localization key of the scene PPL shows after beating the stage, in place of the result
 
 ---@class StadiumDifficulty
 ---@field index integer 1 Easy .. 5 Super Hard
 ---@field nameKey string localization key of the difficulty's name
 ---@field level integer the Panel Attack modern level of every stage
----@field unlockedBy integer? the difficulty whose clear unlocks this one; nil if open from the start
+---@field unlockedBy integer? the difficulty whose ending reveals this one's code; nil if open from the start
+---@field unlockCode string[]? the buttons pressed while holding Raise1 on the difficulty select to unlock it
+---@field helperPairs PplHelperPairs? how often a new row brings a ready-made pair
+---@field endingKey string localization key of the difficulty's ending
+---@field credits boolean the ending rolls the credits
 ---@field stages StadiumStage[]
 
 local StadiumLadder = {}
@@ -39,8 +45,30 @@ local LEVEL_BY_DIFFICULTY = {1, 2, 4, 4, 4}
 -- run saved after the rival's rematch starts on the rival again: rival and boss are always beaten back to back
 local RESUME_STAGE_CAP = 15
 
--- PPL unlocks the top two with button codes; here clearing the difficulty below does (PLAN "Decisions taken")
+-- PPL unlocks the top two with button codes that the endings below them show: hold Z and press L, L, A, B for
+-- Very Hard, R, L, A, B for Super Hard (STADIUM-SPEC §1 "Unlocks"). Panel Attack has no Z, L or R, so Raise1 is held
+-- and the shoulders become Left and Right; A and B are Swap1 and Swap2, as they are in Panel Attack.
 local UNLOCKED_BY = {nil, nil, nil, StadiumLadder.HARD, StadiumLadder.VERY_HARD}
+local UNLOCK_CODES = {
+  [StadiumLadder.VERY_HARD] = {"Left", "Left", "Swap1", "Swap2"},
+  [StadiumLadder.SUPER_HARD] = {"Right", "Left", "Swap1", "Swap2"},
+}
+
+-- PPL's state.newBlock per difficulty: Easy 0 (a pair in every new row), Normal and Hard 1 (every other row), Very
+-- and Super Hard 3 (never) (STADIUM-SPEC §2 "Stack level")
+local HELPER_PAIRS = {"every", "alternate", "alternate", nil, nil}
+
+-- Easy and Normal end on an ending screen; Hard and up roll the credits (STADIUM-SPEC §1 "Difficulties")
+local CREDITS_FROM = StadiumLadder.HARD
+
+-- PPL's story screens (STADIUM-SPEC §1 "Opponent order" and §3): the intro before the first match, the elites'
+-- introduction on reaching stage 12, the boss's intro, and the scenes after beating the rival and the two wanderers
+local INTRO_KEYS = {[1] = "stadium_story_intro", [12] = "stadium_story_elite", [16] = "stadium_story_boss"}
+local BEATEN_KEYS = {
+  [1] = "stadium_story_rival_beaten",
+  [9] = "stadium_story_wanderer_beaten",
+  [10] = "stadium_story_rogues_beaten",
+}
 
 -- PPL's opponent order (STADIUM-SPEC §1) with neutral titles: the rival, seven gyms, two wanderers, the eighth gym,
 -- three elites, the rival as champion and the boss. Every difficulty plays a prefix of it.
@@ -77,6 +105,8 @@ local function createDifficulty(difficulty)
       role = title.role,
       titleKey = title.key,
       titleNumber = title.number,
+      introKey = INTRO_KEYS[index],
+      beatenKey = BEATEN_KEYS[index],
     }
   end
 
@@ -85,6 +115,10 @@ local function createDifficulty(difficulty)
     nameKey = "stadium_difficulty_" .. difficulty,
     level = level,
     unlockedBy = UNLOCKED_BY[difficulty],
+    unlockCode = UNLOCK_CODES[difficulty],
+    helperPairs = HELPER_PAIRS[difficulty],
+    endingKey = "stadium_ending_" .. difficulty,
+    credits = difficulty >= CREDITS_FROM,
     stages = stages,
   }
 end

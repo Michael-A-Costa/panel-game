@@ -25,6 +25,11 @@ end
 -- called whenever the scene becomes active again, after every match
 function CharacterSelectStadium:refresh()
   local stadium = self.battleRoom
+  if stadium and stadium.startDirectly then
+    -- PPL plays the boss and a continued rematch without its pick screen: ready up for the player
+    stadium.startDirectly = false
+    GAME.localPlayer:setWantsReady(true)
+  end
   if self.ui.stadiumInfo and stadium then
     local stage = stadium:getStage()
     local text = stadium.difficultyName .. "   " .. loc("stadium_stage", tostring(stage.index), tostring(#stadium.ladder.stages)) .. ": "

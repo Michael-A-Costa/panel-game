@@ -28,10 +28,12 @@ progression (see Log).
   "1P vs CPU" (2D and 3D) with CPU level 1–10; tests for determinism, replay round trip, read-only.
 - [x] **2a. PPL CPU core**: RNG, board adapter, brain/queues, helpers, executor, `UpdateAI` cascade with planner slots.
 - [x] **2b. PPL CPU planners**: chains (Vert1–5, Hori1–5), garbage and volume, combos and fallback.
-- [~] **3. Stadium mode** (branch `stadium`): ladder room, difficulty menu, game scene, pre-match card, recap,
-  progress in `stadium.json`, unlocks, Stadium 3D, and PPL's progression: its in-match pace (speed schedule, rise
-  times, shrinking topout grace), the "Continue?" question after a loss, resume never on the boss. Works and is
-  tested, but nobody has played it.
+- [x] **3. Stadium mode** (branch `stadium`): ladder room, difficulty menu, game scene, pre-match card, recap,
+  progress in `stadium.json`, Stadium 3D, and PPL's progression copied: in-match pace (speed schedule, rise times,
+  shrinking topout grace), new rows without pairs plus PPL's helper pair by difficulty, story screens between stages,
+  endings with credits, Very Hard and Super Hard unlocked by PPL's codes (shown at the Hard and Very Hard endings),
+  "Continue?" after a loss, the boss and continued rematches started at once, resume never on the boss, best chain
+  and combo saved. Tested; nobody has played it yet.
 - [x] **4. CPU tuning and polish**: 1P vs CPU on PplCpu, SimpleCpu removed, type check back to the 11 pre-existing
   diagnostics, CPU cost ~0.015 ms per frame, CPU-vs-CPU ladder check (BALANCE.md) with two raise fixes.
 
@@ -45,8 +47,7 @@ progression (see Log).
    `PplGarbage.lua` ~52, ~292, ~296.
 3. Balance decisions (BALANCE.md): Easy/Normal get weaker when they gain the raise bit (PPL's design); vs-CPU levels
    8 and 9 are out of order (PPL's DemoCPU table); Super Hard mirror matches can stall past 5 minutes.
-4. Stadium (branch `stadium`): Michael plays it and says whether PPL's pace is too harsh; then the story beats PPL
-   shows between stages (rival-lose scenes after stages 1, 9, 10, the elite intro at 12, endings), Stadium 3D tuning.
+4. Stadium (branch `stadium`): Michael plays it and says whether PPL's pace is too harsh; Stadium 3D tuning.
 
 The Stadium rows in the decisions table below apply to the `stadium` branch.
 
@@ -62,11 +63,12 @@ The Stadium rows in the decisions table below apply to the `stadium` branch.
 | CPU randomness | Own PPL-style generator per CPU, seeded from the match seed + player number | Never touch the panel RNG; CPU-vs-CPU tests stay deterministic |
 | Engine rules | No engine changes for Stadium in phases 1–3; PA's level presets as they are | 2D stays bit-identical; PA levels 1/2/4 already are PPL's VS rows (STADIUM-SPEC §6) |
 | PPL speed schedule, rise times, topout decay | On in Stadium (2D and 3D) through the `pplVersus` stack setup modification; every other mode keeps PA's pace | Michael asked for PPL's progression; a match rule like `cylinder`, so v3 replays carry it and old replays don't change |
-| PPL's helper pair per row (`newBlock`) | Not copied | It changes the panel generator's RNG use |
+| PPL's helper pair per row (`newBlock`) | Copied behind `pplHelperPairs` (Easy every row, Normal/Hard every other, Very/Super Hard none); Stadium's level data denies generated pairs (`adjacentDenialFrequency` 1) as PPL's generator does. The pair's column is a hash of the row count instead of a panel RNG roll | The generator's random numbers stay the same in every mode |
+| Story screens | Text only, no art: PPL's intro, elite and boss intros on the pre-match card (which then waits for a press), the rival/wanderer/rogues scenes after stages 1, 9, 10 as the result line, the boss's win before "Continue?", the rival's return after it, an ending per difficulty and credits from Hard on | Licensing: no PPL characters, names or screens |
 | After a loss | PPL's "Continue?": yes costs a continue and replays the stage (the rival after losing the boss); no leaves the run saved on the lost stage, for free. Leaving a match from the pause menu still costs a continue and replays | STADIUM-SPEC §3.7; a pause-quit that cost nothing would dodge every loss |
 | Resume | Next stage after the last beaten, capped at 15 as PPL does | Rival and boss are always beaten back to back |
 | Opponents | Panel Attack characters, picked per stage from installed characters (stable order); stage 1 and the pre-boss stage share a rival; stage 16 a boss; no Pokémon names or art | Licensing and CONTRIBUTING asset rules |
-| Unlocks | Beat Hard → Very Hard; beat Very Hard → Super Hard (PPL uses codes) | No hidden button codes in PA |
+| Unlocks | PPL's codes on the difficulty select: hold Raise1 (Z) and press Left Left Swap1 Swap2 (L L A B) for Very Hard, Right Left Swap1 Swap2 (R L A B) for Super Hard; the Hard and Very Hard endings show them; remembered per dimension | PPL's own way; Panel Attack has no Z/L/R, so Raise1 and the directions stand in |
 | Online | Offline only | Server knows no CPUs |
 | Where progress is saved | `stadium.json` (`client/src/StadiumProgress.lua`, own version), not `scores.json` | Upstream builds share the save identity and stop writing `scores.json` once its version is newer than theirs |
 | Opponent characters | Fixed per run from the character-select order; only a stage wearing the player's pick gets a stand-in (the first in-between candidate) | Rival and boss must not change when the player changes or re-rolls a character |
@@ -188,3 +190,11 @@ INTEGRATION.md §A4 recipe + STADIUM-SPEC §3 flow:
   `Game1pStadium`; `Stadium:continueRun`), resume capped at stage 15 (`StadiumLadder.getResumeStage`). Tests:
   PplVersusTests (tables, schedule, grace, other modes untouched), StadiumTests for the question, the boss loss and the
   resume cap; render shot `stadium_continue.png`. Suite green, type check at the 11 pre-existing diagnostics.
+- 2026-10-13: Rest of PPL's progression on `stadium`. Engine: `pplHelperPairs` adds PPL's ready-made pair to new
+  rows (Init2DNewRow: the right neighbour's color, never on a shock panel or its own color, no three in a row),
+  `Stack.newRowCount` for the alternation. Client: story keys per stage in `StadiumLadder` (`introKey`, `beatenKey`),
+  endings and credits on the recap, codes instead of clear-unlocks (`StadiumMenu:readCode`, `codeEntered` in
+  `stadium.json`), `startDirectly` for the boss and continued rematches (not for the rival after the boss, which PPL
+  sends through the pick), best chain and combo per difficulty on the menu. Tests: helper pairs 2D/3D in
+  PplVersusTests, codes/bests in StadiumProgressTests, story/codes/direct starts in StadiumTests; shots
+  `stadium_story.png`, `stadium_recap.png` (code). Suite green, type check at the 11 pre-existing diagnostics.

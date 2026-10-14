@@ -27,7 +27,11 @@ local CPU_NAME = "PplCpu"
 ---@field expendedTime integer frames the run played, lost matches included
 ---@field complete boolean the last stage was beaten
 ---@field awaitingContinue boolean the player lost the last match and hasn't answered PPL's "continue?" yet
----@field unlockedDifficulty integer? the difficulty this run's clear unlocked, for the recap
+---@field revealedDifficulty integer? the difficulty whose code this run's ending shows, for the recap
+---@field cardStoryKey string? the story screen the next pre-match card shows; nil after a draw or a lost rematch,
+--- which PPL replays without its story screens
+---@field startDirectly boolean the next match starts without waiting on the character select, as PPL starts the boss
+--- and a continued rematch
 ---@field cpuPlayer CpuPlayer
 ---@field opponentCandidates string[] the characters the run's opponents wear, from Stadium.getOpponentCandidates
 ---@field stadiumProgress StadiumProgress
@@ -48,7 +52,10 @@ function(self, mode, gameScene, difficulty, options)
   self.stadiumProgress = options.progress or StadiumProgress.load()
   self.complete = false
   self.awaitingContinue = false
-  self.unlockedDifficulty = nil
+  self.revealedDifficulty = nil
+  self.startDirectly = false
+  -- the room's mode is its own copy, so the difficulty's helper pairs reach this run's matches and replays only
+  self.mode.matchRules.stackSetupModifications.pplHelperPairs = self.ladder.helperPairs
 
   local startStage = 1
   if options.resume then
@@ -74,6 +81,7 @@ function(self, mode, gameScene, difficulty, options)
   GAME.localPlayer:connectSignal("characterIdChanged", self, self.refreshOpponentCharacter)
   self:restoreInputConfigurations()
   self:setStage(startStage)
+  self.cardStoryKey = self:getStage().introKey
 end,
 BattleRoom)
 
@@ -96,14 +104,23 @@ function Stadium.getDimension(gameMode)
   end
 end
 
--- a difficulty is open from the start or once the one it names is cleared, separately in 2D and 3D
+-- a difficulty is open from the start or once its code was entered on the difficulty select, as in PPL, separately
+-- in 2D and 3D
 ---@param stadiumProgress StadiumProgress
 ---@param dimension StadiumDimension
 ---@param difficulty integer
 ---@return boolean
 function Stadium.isUnlocked(stadiumProgress, dimension, difficulty)
-  local unlockedBy = StadiumLadder.getDifficulty(difficulty).unlockedBy
-  return unlockedBy == nil or stadiumProgress:get(dimension, unlockedBy).clears > 0
+  return StadiumLadder.getDifficulty(difficulty).unlockCode == nil
+      or stadiumProgress:get(dimension, difficulty).codeEntered > 0
+end
+
+-- the difficulty's code as the ending shows it, e.g. "Left Left Swap1 Swap2"
+---@param difficulty integer
+---@return string
+function Stadium.getCodeText(difficulty)
+  local code = assert(StadiumLadder.getDifficulty(difficulty).unlockCode, "difficulty " .. difficulty .. " has no code")
+  return table.concat(code, " ")
 end
 
 ---@param stage StadiumStage
@@ -212,7 +229,10 @@ function Stadium:setStage(index)
   local stage = self:getStage()
 
   GAME.localPlayer:setLevel(stage.level)
-  GAME.localPlayer:setLevelData(LevelPresets.getModern(stage.level))
+  local levelData = LevelPresets.getModern(stage.level)
+  -- PPL's new rows never repeat a color next to itself; its ready-made pairs come from pplHelperPairs instead
+  levelData.adjacentDenialFrequency = 1
+  GAME.localPlayer:setLevelData(levelData)
   self.cpuPlayer:setCpu(CPU_NAME, stage.cpuOptions)
   self.cpuPlayer:copyLevelFrom(GAME.localPlayer)
   self:refreshOpponentCharacter()
@@ -227,6 +247,9 @@ function Stadium:recordStageResult(winners, gameLength)
   if #winners == 1 and winners[1] ~= self.cpuPlayer then
     if self.stageIndex < #self.ladder.stages then
       self:setStage(self.stageIndex + 1)
+      self.cardStoryKey = self:getStage().introKey
+      -- PPL goes from the rival's defeat straight into the boss's intro and match
+      self.startDirectly = self:getStage().role == "boss"
     else
       self:completeLadder()
       return
@@ -237,8 +260,10 @@ function Stadium:recordStageResult(winners, gameLength)
     -- a loss: the player answers "continue?" next; until then the run stays where it is
     self.awaitingContinue = true
   else
-    -- an abort, which only the player can cause, gives up the match and goes straight to the rematch
+    -- an abort, which only the player can cause, gives up the match and costs a continue; the character select
+    -- waits, so the player can still leave the run
     self:continueRun()
+    self.startDirectly = false
     return
   end
 
@@ -249,25 +274,49 @@ function Stadium:saveRun()
   self.stadiumProgress:saveRun(self.dimension, self.difficulty, self.stageIndex - 1, self.continues, self.expendedTime)
 end
 
--- The player continues after a loss: it costs a continue, and losing the boss sends the player back to the rival,
--- as PPL makes the two be beaten back to back (STADIUM-SPEC §3.7-8)
+-- The player continues after a loss: it costs a continue and PPL replays the stage at once. Losing the boss sends the
+-- player back to the rival instead, with a story screen and the pick first, as PPL makes the two be beaten back to
+-- back (STADIUM-SPEC §3.7-8)
 function Stadium:continueRun()
   self.awaitingContinue = false
   self.continues = self.continues + 1
+  self.startDirectly = true
   if self:getStage().role == "boss" then
     self:setStage(self.stageIndex - 1)
+    self.cardStoryKey = "stadium_story_rival_returns"
+    self.startDirectly = false
   end
   self:saveRun()
 end
 
 function Stadium:completeLadder()
   self.complete = true
+  -- like PPL's CHEATCODE screens, every ending of Hard and Very Hard shows the next difficulty's code
   for difficulty, ladder in ipairs(StadiumLadder.difficulties) do
-    if ladder.unlockedBy == self.difficulty and not Stadium.isUnlocked(self.stadiumProgress, self.dimension, difficulty) then
-      self.unlockedDifficulty = difficulty
+    if ladder.unlockedBy == self.difficulty then
+      self.revealedDifficulty = difficulty
     end
   end
   self.stadiumProgress:saveClear(self.dimension, self.difficulty, self.continues, self.expendedTime)
+end
+
+-- PPL keeps the player's best combo and chain from Stadium matches
+---@param match ClientMatch
+function Stadium:saveBests(match)
+  local stack = match.stacks[1]
+  if not stack or not stack.analytic then
+    return
+  end
+  local data = stack.analytic.data
+  local chain = 0
+  for size in pairs(data.reached_chains) do
+    chain = math.max(chain, size)
+  end
+  local combo = 0
+  for size in pairs(data.used_combos) do
+    combo = math.max(combo, size)
+  end
+  self.stadiumProgress:saveBests(self.dimension, self.difficulty, chain, combo)
 end
 
 ---@param match ClientMatch
@@ -283,6 +332,10 @@ function Stadium:onMatchEnded(match)
     winners = {}
   else
     winners = match:getWinners() or {}
+  end
+
+  if not match.engine.aborted then
+    self:saveBests(match)
   end
 
   -- counts the match, credits the win and returns the room to setup

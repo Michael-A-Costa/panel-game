@@ -78,6 +78,24 @@ local function ladderDataTest()
   expect(StadiumLadder.getDifficulty(3).unlockedBy, nil, "Hard is open")
   expect(StadiumLadder.getDifficulty(4).unlockedBy, StadiumLadder.HARD, "Hard unlocks Very Hard")
   expect(StadiumLadder.getDifficulty(5).unlockedBy, StadiumLadder.VERY_HARD, "Very Hard unlocks Super Hard")
+  expect(Stadium.getCodeText(StadiumLadder.VERY_HARD), "Left Left Swap1 Swap2", "PPL's L, L, A, B")
+  expect(Stadium.getCodeText(StadiumLadder.SUPER_HARD), "Right Left Swap1 Swap2", "PPL's R, L, A, B")
+  local helperPairs = {"every", "alternate", "alternate"}
+  for difficulty, ladder in ipairs(StadiumLadder.difficulties) do
+    expect(ladder.helperPairs, helperPairs[difficulty], "difficulty " .. difficulty .. "'s helper pairs")
+    expect(ladder.credits, difficulty >= StadiumLadder.HARD, "difficulty " .. difficulty .. " rolls the credits")
+    assert(loc(ladder.endingKey):sub(1, 1) ~= "#", "difficulty " .. difficulty .. " has an ending")
+    for _, stage in ipairs(ladder.stages) do
+      for _, key in ipairs({stage.introKey or "stadium_title_rival", stage.beatenKey or "stadium_title_rival"}) do
+        assert(loc(key):sub(1, 1) ~= "#", key .. " is localized")
+      end
+    end
+  end
+  local veryHard = StadiumLadder.getDifficulty(StadiumLadder.VERY_HARD)
+  expect(veryHard.stages[1].introKey, "stadium_story_intro", "the run opens on PPL's intro")
+  expect(veryHard.stages[12].introKey, "stadium_story_elite", "the elites are introduced at stage 12")
+  expect(veryHard.stages[16].introKey, "stadium_story_boss", "and the boss at 16")
+  expect(veryHard.stages[9].beatenKey, "stadium_story_wanderer_beaten", "beating the wanderer has its scene")
   expect(Stadium.getStageTitle(StadiumLadder.getDifficulty(2).stages[4]), "Gym 3", "titles fill in their number")
   expect(StadiumLadder.getResumeStage(StadiumLadder.EASY, 0), 1, "a run without wins resumes at stage 1")
   expect(StadiumLadder.getResumeStage(StadiumLadder.EASY, 10), 11, "a run resumes after its last win")
@@ -163,6 +181,13 @@ local function stageFlowTest()
   expect(cpu.settings.levelData.startingSpeed, LevelPresets.getModern(2).startingSpeed, "with level 2's data")
   expect(cpu.name, characters[cpu.settings.characterId].display_name, "the CPU goes by its character's name")
   expect(stadium.stageIndex, 1, "a new game starts at stage 1")
+  expect(stadium.cardStoryKey, "stadium_story_intro", "with the intro")
+  expect(stadium.mode.matchRules.stackSetupModifications.pplHelperPairs, "alternate", "Normal's helper pairs")
+  expect(human.settings.levelData.adjacentDenialFrequency, 1, "and no pairs from the generator")
+  expect(cpu.settings.levelData.adjacentDenialFrequency, 1, "on both sides")
+  assert(GameModes.getPreset(GameModes.IDs.ONE_PLAYER_STADIUM).matchRules.stackSetupModifications.pplHelperPairs == nil,
+         "the preset itself is untouched")
+  stadium.cardStoryKey = nil
 
   stadium:recordStageResult({human}, 600)
   expect(stadium.stageIndex, 2, "a win moves on")
@@ -174,6 +199,7 @@ local function stageFlowTest()
   stadium:recordStageResult({human, cpu}, 300)
   expect(stadium.stageIndex, 2, "a draw replays the stage")
   expect(stadium.continues, 0, "for free")
+  expect(stadium.cardStoryKey, nil, "without story")
 
   stadium:recordStageResult({cpu}, 300)
   assert(stadium.awaitingContinue, "a loss asks whether to continue")
@@ -184,9 +210,12 @@ local function stageFlowTest()
   expect(stadium.stageIndex, 2, "continuing replays the stage")
   expect(stadium.continues, 1, "for a continue")
   expect(progress.continues, 1, "which is saved")
+  assert(stadium.startDirectly, "right away, as PPL does")
+  stadium.startDirectly = false
 
   stadium:recordStageResult({}, 0)
   expect(stadium.continues, 2, "leaving a match costs a continue too")
+  assert(not stadium.startDirectly, "but the select waits, so the player can leave")
   expect(progress.time, 1200, "every match's time counts")
 
   local saves = saved.saveCount
@@ -198,7 +227,7 @@ local function stageFlowTest()
   expect(progress.clears, 1, "the clear is recorded")
   expect(progress.bestContinues, 2, "with its continues")
   expect(progress.lastStageBeaten, 0, "and the next game starts over")
-  expect(stadium.unlockedDifficulty, nil, "Normal unlocks nothing")
+  expect(stadium.revealedDifficulty, nil, "Normal's ending shows no code")
   stadium:shutdown()
 end
 
@@ -208,9 +237,11 @@ local function bossAndUnlockTest()
   local veryHard = StadiumLadder.VERY_HARD
   assert(not Stadium.isUnlocked(saved, "3d", veryHard), "Very Hard starts locked")
   saved:saveClear("3d", StadiumLadder.HARD, 0, 0)
-  assert(Stadium.isUnlocked(saved, "3d", veryHard), "clearing Hard unlocks Very Hard")
-  assert(not Stadium.isUnlocked(saved, "2d", veryHard), "in the dimension it was cleared in")
-  assert(not Stadium.isUnlocked(saved, "3d", StadiumLadder.SUPER_HARD), "Super Hard needs Very Hard")
+  assert(not Stadium.isUnlocked(saved, "3d", veryHard), "clearing Hard only shows the code, as in PPL")
+  saved:enterCode("3d", veryHard)
+  assert(Stadium.isUnlocked(saved, "3d", veryHard), "entering it unlocks Very Hard")
+  assert(not Stadium.isUnlocked(saved, "2d", veryHard), "in the dimension it was entered in")
+  assert(not Stadium.isUnlocked(saved, "3d", StadiumLadder.SUPER_HARD), "Super Hard has its own code")
 
   -- a saved run that beat stage 14
   saved:saveRun("3d", veryHard, 14, 3, 1000)
@@ -228,6 +259,9 @@ local function bossAndUnlockTest()
   stadium:recordStageResult({human}, 100)
   expect(stadium.stageIndex, 16, "the rival leads to the boss")
   expect(stadium:getStage().role, "boss", "stage 16 is the boss")
+  assert(stadium.startDirectly, "whose match starts right away")
+  expect(stadium.cardStoryKey, "stadium_story_boss", "after the boss's intro")
+  stadium.startDirectly = false
   local candidates = Stadium.getOpponentCandidates()
   local bossCharacter = Stadium.getOpponentCharacter(candidates, stadium:getStage())
   expect(cpu.settings.characterId, Stadium.getStandIn(candidates, bossCharacter, human.settings.characterId),
@@ -244,6 +278,8 @@ local function bossAndUnlockTest()
   expect(StadiumLadder.getResumeStage(veryHard, 15), 15, "but resumes on the rival")
   stadium:continueRun()
   expect(stadium.stageIndex, 15, "continuing after losing the boss goes back to the rival")
+  expect(stadium.cardStoryKey, "stadium_story_rival_returns", "who comes back with a story screen")
+  assert(not stadium.startDirectly, "and the pick, as in PPL")
   expect(stadium.continues, 4, "for a continue")
   expect(cpu.settings.characterId, rivalCharacter, "the same rival")
   expect(saved:get("3d", veryHard).lastStageBeaten, 14, "the rival has to be beaten again")
@@ -255,12 +291,14 @@ local function bossAndUnlockTest()
 
   stadium:recordStageResult({human}, 100)
   assert(stadium.complete, "beating the boss finishes Very Hard")
-  expect(stadium.unlockedDifficulty, StadiumLadder.SUPER_HARD, "and unlocks Super Hard")
-  assert(Stadium.isUnlocked(saved, "3d", StadiumLadder.SUPER_HARD), "for good")
+  expect(stadium.revealedDifficulty, StadiumLadder.SUPER_HARD, "and shows Super Hard's code")
+  assert(not Stadium.isUnlocked(saved, "3d", StadiumLadder.SUPER_HARD), "which still has to be entered")
   expect(saved:get("3d", veryHard).bestTime, 1500, "the clear keeps the whole run's time")
 
   local recap = StadiumRecapScene({stadium = stadium})
-  assert(recap.unlockText:find(loc("stadium_difficulty_5"), 1, true), "the recap names the unlocked difficulty")
+  assert(recap.unlockText:find(Stadium.getCodeText(StadiumLadder.SUPER_HARD), 1, true), "the recap shows the code")
+  expect(recap.endingText, loc("stadium_ending_4"), "after Very Hard's ending")
+  assert(recap.creditsText, "and the credits")
   stadium:shutdown()
 end
 
@@ -300,6 +338,25 @@ local function scenesTest()
   menu.difficultyStepper:setState(StadiumLadder.VERY_HARD)
   expect(menu.resumeItem, nil, "a locked difficulty has no run")
 
+  -- PPL's code, Raise1 held for Z: the presses go to the code, not the menu
+  menu.difficultyStepper:setState(StadiumLadder.EASY)
+  input.isPressed["Raise1"] = 1
+  for _, button in ipairs({"Swap1", "Left", "Left", "Swap1", "Swap2"}) do
+    input.isDown[button] = true
+    assert(menu:readCode(), "while Raise1 is held the menu doesn't take " .. button)
+    input.isDown[button] = nil
+  end
+  input.isPressed["Raise1"] = nil
+  assert(menu:isUnlocked(StadiumLadder.VERY_HARD), "the code unlocks Very Hard")
+  expect(menu.difficultyStepper.value, StadiumLadder.VERY_HARD, "and picks it")
+  expect(saved:get("3d", StadiumLadder.VERY_HARD).codeEntered, 1, "for good")
+  assert(not menu:isUnlocked(StadiumLadder.SUPER_HARD), "Super Hard needs its own code")
+  assert(not menu:readCode(), "without Raise1 the menu takes its keys again")
+  expect(#menu.codeKeys, 0, "and the code starts over")
+  saved:saveBests("3d", StadiumLadder.EASY, 4, 7)
+  menu.difficultyStepper:setState(StadiumLadder.EASY)
+  assert(menu.infoLabel.text:find(loc("stadium_bests", "4", "7"), 1, true), "the menu shows the bests")
+
   local stadium = Stadium.create(StadiumLadder.EASY, GameModes.IDs.ONE_PLAYER_STADIUM_3D, {resume = true, progress = saved})
   GAME.battleRoom = stadium
   local characterSelect = CharacterSelectStadium({battleRoom = stadium})
@@ -335,6 +392,20 @@ local function scenesTest()
   local unattended = Game1pStadium({match = match})
   unattended:update(3)
   assert(not unattended.cardVisible, "the card closes by itself")
+  stadium.cardStoryKey = "stadium_story_rival_returns"
+  local story = Game1pStadium({match = match})
+  expect(story.storyText, loc("stadium_story_rival_returns"), "a story screen rides on the card")
+  expect(stadium.cardStoryKey, nil, "once")
+  story:drawCard()
+  story:update(5)
+  assert(story.cardVisible, "and waits for a press, like PPL's")
+
+  -- the boss and a continued rematch start without waiting on the select
+  stadium.startDirectly = true
+  characterSelect:refresh()
+  assert(human.settings.wantsReady, "the select readies the player up")
+  assert(not stadium.startDirectly, "once")
+  human:setWantsReady(false)
 
   -- a touch player gets the Stadium scene as well, where BattleRoom would hand out PortraitGame
   local inputMethod = human.settings.inputMethod

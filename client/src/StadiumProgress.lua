@@ -20,13 +20,19 @@ local CURRENT_VERSION = 1
 ---@field clears integer how often the difficulty was finished
 ---@field bestContinues integer fewest continues of a finished run; meaningless while clears is 0
 ---@field bestTime integer fewest frames of a finished run; meaningless while clears is 0
+---@field codeEntered integer 1 once the difficulty's unlock code was entered, else 0
+---@field bestChain integer longest chain in a Stadium match of the difficulty, as PPL keeps per profile
+---@field bestCombo integer biggest combo in a Stadium match of the difficulty
 
-local PROGRESS_FIELDS = {"lastStageBeaten", "continues", "time", "clears", "bestContinues", "bestTime"}
+-- the fields are numbers only, so a file of an older build of this version simply lacks the newer ones
+local PROGRESS_FIELDS = {"lastStageBeaten", "continues", "time", "clears", "bestContinues", "bestTime", "codeEntered",
+                         "bestChain", "bestCombo"}
 local DIMENSIONS = {"2d", "3d"}
 
 ---@return StadiumDifficultyProgress
 local function newDifficultyProgress()
-  return {lastStageBeaten = 0, continues = 0, time = 0, clears = 0, bestContinues = 0, bestTime = 0}
+  return {lastStageBeaten = 0, continues = 0, time = 0, clears = 0, bestContinues = 0, bestTime = 0, codeEntered = 0,
+          bestChain = 0, bestCombo = 0}
 end
 
 -- The saved 1P Stadium progress, per dimension and difficulty
@@ -169,6 +175,28 @@ function StadiumProgress:saveClear(dimension, difficulty, continues, time)
   end
   progress.clears = progress.clears + 1
   self:resetRun(dimension, difficulty)
+end
+
+-- Remembers that a difficulty's unlock code was entered
+---@param dimension StadiumDimension
+---@param difficulty integer
+function StadiumProgress:enterCode(dimension, difficulty)
+  self:get(dimension, difficulty).codeEntered = 1
+  self:saveToFile()
+end
+
+-- Keeps a match's longest chain and biggest combo if they beat the difficulty's best
+---@param dimension StadiumDimension
+---@param difficulty integer
+---@param chain integer
+---@param combo integer
+function StadiumProgress:saveBests(dimension, difficulty, chain, combo)
+  local progress = self:get(dimension, difficulty)
+  if chain > progress.bestChain or combo > progress.bestCombo then
+    progress.bestChain = math.max(progress.bestChain, chain)
+    progress.bestCombo = math.max(progress.bestCombo, combo)
+    self:saveToFile()
+  end
 end
 
 return StadiumProgress

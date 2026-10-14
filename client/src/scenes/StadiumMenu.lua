@@ -6,6 +6,7 @@ local StadiumLadder = require("common.data.StadiumLadder")
 local Stadium = require("client.src.Stadium")
 local StadiumProgress = require("client.src.StadiumProgress")
 local CharacterSelectStadium = require("client.src.scenes.CharacterSelectStadium")
+local input = require("client.src.inputManager")
 
 -- Scene picking the difficulty of a 1P Stadium run, 2D or 3D, and whether to resume its saved run
 ---@class StadiumMenu : LocalModeMenu
@@ -14,11 +15,13 @@ local CharacterSelectStadium = require("client.src.scenes.CharacterSelectStadium
 ---@field difficultyStepper Stepper
 ---@field resumeItem MenuItem? present while the picked difficulty has a saved run
 ---@field infoLabel Label what the picked difficulty needs to unlock or how often it was cleared
+---@field codeKeys string[] the code buttons pressed since Raise1 went down
 local StadiumMenu = class(
   function(self, sceneParams)
     self.dimension = Stadium.getDimension(GameModes.getPreset(self.gameModeId))
     self.stadiumProgress = sceneParams and sceneParams.progress or StadiumProgress.load()
     self.resumeItem = nil
+    self.codeKeys = {}
     self:load(sceneParams)
   end,
   LocalModeMenu
@@ -114,10 +117,15 @@ function StadiumMenu:refreshDifficulty()
   if not self:isUnlocked(difficulty) then
     local unlockedBy = StadiumLadder.getDifficulty(ladder.unlockedBy)
     self.infoLabel:setText(loc("stadium_unlock_hint", loc(unlockedBy.nameKey)), nil, false)
-  elseif progress.clears > 0 then
-    self.infoLabel:setText(loc("stadium_record", tostring(progress.clears), tostring(progress.bestContinues)), nil, false)
   else
-    self.infoLabel:setText("", nil, false)
+    local lines = {}
+    if progress.clears > 0 then
+      lines[#lines + 1] = loc("stadium_record", tostring(progress.clears), tostring(progress.bestContinues))
+    end
+    if progress.bestChain > 0 or progress.bestCombo > 0 then
+      lines[#lines + 1] = loc("stadium_bests", tostring(progress.bestChain), tostring(progress.bestCombo))
+    end
+    self.infoLabel:setText(table.concat(lines, "\n"), nil, false)
   end
 
   if self:isUnlocked(difficulty) and progress.lastStageBeaten > 0 then
@@ -126,6 +134,63 @@ function StadiumMenu:refreshDifficulty()
       self:goToCharacterSelect(true)
     end)
     self.menu:addMenuItem(2, self.resumeItem)
+  end
+end
+
+local CODE_BUTTONS = {"Left", "Right", "Swap1", "Swap2"}
+
+-- PPL's difficulty select takes button codes while Z is held; here Raise1 is held, and the menu ignores the presses
+---@return boolean held if Raise1 is down, so the menu must not take the presses
+function StadiumMenu:readCode()
+  if not (input.isPressed["Raise1"] or input.isDown["Raise1"]) then
+    if #self.codeKeys > 0 then
+      self.codeKeys = {}
+    end
+    return false
+  end
+
+  for _, button in ipairs(CODE_BUTTONS) do
+    if input.isDown[button] then
+      self.codeKeys[#self.codeKeys + 1] = button
+      self:checkCode()
+    end
+  end
+  return true
+end
+
+-- unlocks the difficulty whose code the last presses spell, and picks it
+function StadiumMenu:checkCode()
+  for difficulty, ladder in ipairs(StadiumLadder.difficulties) do
+    local code = ladder.unlockCode
+    if code and #self.codeKeys >= #code then
+      local matches = true
+      for i = 1, #code do
+        if self.codeKeys[#self.codeKeys - #code + i] ~= code[i] then
+          matches = false
+          break
+        end
+      end
+      if matches then
+        self.codeKeys = {}
+        if not self:isUnlocked(difficulty) then
+          self.stadiumProgress:enterCode(self.dimension, difficulty)
+        end
+        GAME.theme:playValidationSfx()
+        self:refresh()
+        self.difficultyStepper:setState(difficulty)
+        self.infoLabel:setText(loc("stadium_code_entered", loc(ladder.nameKey)), nil, false)
+        return
+      end
+    end
+  end
+end
+
+function StadiumMenu:updateSelf(dt)
+  if self:readCode() then
+    self.backgroundImg:update(dt)
+    self.uiRoot:update(dt)
+  else
+    LocalModeMenu.updateSelf(self, dt)
   end
 end
 
