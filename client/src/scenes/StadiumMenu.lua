@@ -121,7 +121,7 @@ function StadiumMenu:refreshDifficulty()
   end
 
   if self:isUnlocked(difficulty) and progress.lastStageBeaten > 0 then
-    local nextStage = math.min(progress.lastStageBeaten + 1, #ladder.stages)
+    local nextStage = StadiumLadder.getResumeStage(difficulty, progress.lastStageBeaten)
     self.resumeItem = ui.MenuItem.createButtonMenuItem("stadium_resume", {nextStage, #ladder.stages}, nil, function()
       self:goToCharacterSelect(true)
     end)

@@ -18,7 +18,8 @@ Branches, both pushed to `origin` (the public fork):
 - `stadium` (off `cpu-ai`): the 1P Stadium draft, one revert of the commit that split it out of `cpu-ai`. Rebase or
   merge it onto `cpu-ai` when picking Stadium up again.
 
-**Goal closed 2026-10-13 on the CPU AI.** Stadium is left for another time.
+**Goal closed 2026-10-13 on the CPU AI.** Stadium picked up again the same day on branch `stadium`: PPL's
+progression (see Log).
 
 ## Status
 
@@ -27,8 +28,10 @@ Branches, both pushed to `origin` (the public fork):
   "1P vs CPU" (2D and 3D) with CPU level 1–10; tests for determinism, replay round trip, read-only.
 - [x] **2a. PPL CPU core**: RNG, board adapter, brain/queues, helpers, executor, `UpdateAI` cascade with planner slots.
 - [x] **2b. PPL CPU planners**: chains (Vert1–5, Hori1–5), garbage and volume, combos and fallback.
-- [~] **3. Stadium mode** (draft on branch `stadium`, deferred): ladder room, difficulty menu, game scene, pre-match
-  card, recap, progress in `stadium.json`, unlocks, Stadium 3D. Works and is tested, but nobody has played it.
+- [~] **3. Stadium mode** (branch `stadium`): ladder room, difficulty menu, game scene, pre-match card, recap,
+  progress in `stadium.json`, unlocks, Stadium 3D, and PPL's progression: its in-match pace (speed schedule, rise
+  times, shrinking topout grace), the "Continue?" question after a loss, resume never on the boss. Works and is
+  tested, but nobody has played it.
 - [x] **4. CPU tuning and polish**: 1P vs CPU on PplCpu, SimpleCpu removed, type check back to the 11 pre-existing
   diagnostics, CPU cost ~0.015 ms per frame, CPU-vs-CPU ladder check (BALANCE.md) with two raise fixes.
 
@@ -42,7 +45,8 @@ Branches, both pushed to `origin` (the public fork):
    `PplGarbage.lua` ~52, ~292, ~296.
 3. Balance decisions (BALANCE.md): Easy/Normal get weaker when they gain the raise bit (PPL's design); vs-CPU levels
    8 and 9 are out of order (PPL's DemoCPU table); Super Hard mirror matches can stall past 5 minutes.
-4. Stadium, later (branch `stadium`): endings/credits gate, PPL speed schedule, Stadium 3D tuning, a playtest.
+4. Stadium (branch `stadium`): Michael plays it and says whether PPL's pace is too harsh; then the story beats PPL
+   shows between stages (rival-lose scenes after stages 1, 9, 10, the elite intro at 12, endings), Stadium 3D tuning.
 
 The Stadium rows in the decisions table below apply to the `stadium` branch.
 
@@ -57,7 +61,10 @@ The Stadium rows in the decisions table below apply to the `stadium` branch.
 | Swap refusal (moves 5/6) | Decide with `stack:canSwap` at move time | Read-only, same rules the swap will meet |
 | CPU randomness | Own PPL-style generator per CPU, seeded from the match seed + player number | Never touch the panel RNG; CPU-vs-CPU tests stay deterministic |
 | Engine rules | No engine changes for Stadium in phases 1–3; PA's level presets as they are | 2D stays bit-identical; PA levels 1/2/4 already are PPL's VS rows (STADIUM-SPEC §6) |
-| PPL speed schedule, topout decay, helper pairs | Phase 4, optional, behind new Stadium-only rules if wanted | Harsher than PA; needs Michael's playtest first |
+| PPL speed schedule, rise times, topout decay | On in Stadium (2D and 3D) through the `pplVersus` stack setup modification; every other mode keeps PA's pace | Michael asked for PPL's progression; a match rule like `cylinder`, so v3 replays carry it and old replays don't change |
+| PPL's helper pair per row (`newBlock`) | Not copied | It changes the panel generator's RNG use |
+| After a loss | PPL's "Continue?": yes costs a continue and replays the stage (the rival after losing the boss); no leaves the run saved on the lost stage, for free. Leaving a match from the pause menu still costs a continue and replays | STADIUM-SPEC §3.7; a pause-quit that cost nothing would dodge every loss |
+| Resume | Next stage after the last beaten, capped at 15 as PPL does | Rival and boss are always beaten back to back |
 | Opponents | Panel Attack characters, picked per stage from installed characters (stable order); stage 1 and the pre-boss stage share a rival; stage 16 a boss; no Pokémon names or art | Licensing and CONTRIBUTING asset rules |
 | Unlocks | Beat Hard → Very Hard; beat Very Hard → Super Hard (PPL uses codes) | No hidden button codes in PA |
 | Online | Offline only | Server knows no CPUs |
@@ -173,3 +180,11 @@ INTEGRATION.md §A4 recipe + STADIUM-SPEC §3 flow:
 - 2026-10-13: Split the Stadium draft onto its own branch `stadium` (off `cpu-ai`); `cpu-ai` keeps the CPU, 1P vs CPU
   and the balance tools, which now use the vs-CPU modes and PPL's stack level per difficulty directly. Docs moved to
   `docs/cpu-ai/`. Suite green, render harness runs, type check at the 11 pre-existing diagnostics.
+- 2026-10-13: Stadium picked up again on `stadium` (still one branch off `cpu-ai`, no Stadium commits on the 3D or
+  CPU branches): PPL's progression. Engine: `StackSetupModifications.pplVersus`, set by both Stadium presets, swaps in
+  `st_AdvanceLevel` (speed +1 after 15 s ×4, 10, 9, 8, 7, 6, then 5 s) and `st_RaiseTimer` (`consts.PPL_*`, checked
+  against the decomp data) and shrinks the topout grace with match minutes (`Stack:getMaxHealth`; PPL recomputes it
+  every topped-out frame, here it is taken when the stack tops out). Client: a loss asks "Continue?" (Yes/No menu in
+  `Game1pStadium`; `Stadium:continueRun`), resume capped at stage 15 (`StadiumLadder.getResumeStage`). Tests:
+  PplVersusTests (tables, schedule, grace, other modes untouched), StadiumTests for the question, the boss loss and the
+  resume cap; render shot `stadium_continue.png`. Suite green, type check at the 11 pre-existing diagnostics.

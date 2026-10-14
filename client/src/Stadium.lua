@@ -14,8 +14,9 @@ local CPU_NAME = "PplCpu"
 ---@field progress StadiumProgress? where progress is read and saved; the player's own if nil
 
 -- A run up one difficulty of the 1P Stadium ladder (docs/cpu-ai/STADIUM-SPEC.md §3): the local player against the
--- PPL CPU, one game per stage. A win moves on to the next stage, a draw replays the stage for free, a loss costs a
--- continue, and losing the boss sends the player back to the rival before it. Progress is saved after every match.
+-- PPL CPU, one game per stage. A win moves on to the next stage and a draw replays the stage for free. After a loss
+-- PPL asks whether to continue: yes costs a continue and replays the stage, or after losing to the boss the rival
+-- before it; no leaves the run saved where it was. Progress is saved after every match.
 ---@class Stadium : BattleRoom
 ---@field ladder StadiumDifficulty
 ---@field difficulty integer 1 Easy .. 5 Super Hard
@@ -25,6 +26,7 @@ local CPU_NAME = "PplCpu"
 ---@field continues integer continues the run used, unlimited like PPL's
 ---@field expendedTime integer frames the run played, lost matches included
 ---@field complete boolean the last stage was beaten
+---@field awaitingContinue boolean the player lost the last match and hasn't answered PPL's "continue?" yet
 ---@field unlockedDifficulty integer? the difficulty this run's clear unlocked, for the recap
 ---@field cpuPlayer CpuPlayer
 ---@field opponentCandidates string[] the characters the run's opponents wear, from Stadium.getOpponentCandidates
@@ -45,12 +47,13 @@ function(self, mode, gameScene, difficulty, options)
   self.dimension = Stadium.getDimension(mode)
   self.stadiumProgress = options.progress or StadiumProgress.load()
   self.complete = false
+  self.awaitingContinue = false
   self.unlockedDifficulty = nil
 
   local startStage = 1
   if options.resume then
     local progress = self.stadiumProgress:get(self.dimension, difficulty)
-    startStage = math.min(progress.lastStageBeaten + 1, #self.ladder.stages)
+    startStage = StadiumLadder.getResumeStage(difficulty, progress.lastStageBeaten)
     self.continues = progress.continues
     self.expendedTime = progress.time
   else
@@ -230,16 +233,31 @@ function Stadium:recordStageResult(winners, gameLength)
     end
   elseif #winners == 2 then
     -- a draw: PPL replays the stage at no cost
+  elseif #winners == 1 then
+    -- a loss: the player answers "continue?" next; until then the run stays where it is
+    self.awaitingContinue = true
   else
-    -- a loss, or an abort, which only the player can cause: the rematch costs a continue
-    self.continues = self.continues + 1
-    if self:getStage().role == "boss" then
-      -- PPL makes the player beat the rival and the boss back to back (STADIUM-SPEC §3.8)
-      self:setStage(self.stageIndex - 1)
-    end
+    -- an abort, which only the player can cause, gives up the match and goes straight to the rematch
+    self:continueRun()
+    return
   end
 
+  self:saveRun()
+end
+
+function Stadium:saveRun()
   self.stadiumProgress:saveRun(self.dimension, self.difficulty, self.stageIndex - 1, self.continues, self.expendedTime)
+end
+
+-- The player continues after a loss: it costs a continue, and losing the boss sends the player back to the rival,
+-- as PPL makes the two be beaten back to back (STADIUM-SPEC §3.7-8)
+function Stadium:continueRun()
+  self.awaitingContinue = false
+  self.continues = self.continues + 1
+  if self:getStage().role == "boss" then
+    self:setStage(self.stageIndex - 1)
+  end
+  self:saveRun()
 end
 
 function Stadium:completeLadder()

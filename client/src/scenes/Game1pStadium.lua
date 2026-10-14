@@ -2,6 +2,8 @@ local GameBase = require("client.src.scenes.GameBase")
 local class = require("common.lib.class")
 local consts = require("common.engine.consts")
 local input = require("client.src.inputManager")
+local tableUtils = require("common.lib.tableUtils")
+local ui = require("client.src.ui")
 local GraphicsUtil = require("client.src.graphics.graphics_util")
 local Stadium = require("client.src.Stadium")
 local StadiumRecapScene = require("client.src.scenes.StadiumRecapScene")
@@ -16,6 +18,7 @@ local StadiumRecapScene = require("client.src.scenes.StadiumRecapScene")
 ---@field stageLabel string "Stage x/N"
 ---@field cardVisible boolean the pre-match card is up and the match hasn't started yet
 ---@field cardTime number seconds the card has been up
+---@field continueMenu Menu PPL's "continue?" after a loss; shown once the player leaves the game over screen
 local Game1pStadium = class(
 ---@param self Game1pStadium
 function(self, sceneParams)
@@ -61,6 +64,30 @@ end
 
 function Game1pStadium:closeCard()
   self.cardVisible = false
+end
+
+function Game1pStadium:customLoad()
+  local stadium = self.stadium
+  self.continueMenu = ui.Menu.createCenteredMenu({
+    ui.MenuItem.createButtonMenuItem("stadium_continue_yes", nil, true, function()
+      GAME.theme:playValidationSfx()
+      stadium:continueRun()
+      -- back to the character select, where readying up plays the rematch
+      GAME.navigationStack:pop(nil, function()
+        self.match:deinit()
+      end)
+    end),
+    ui.MenuItem.createButtonMenuItem("stadium_continue_no", nil, true, function()
+      GAME.theme:playCancelSfx()
+      -- the run stays saved on the lost stage, for "resume"
+      GAME.navigationStack:popToName("StadiumMenu", nil, function()
+        self.match:deinit()
+        stadium:shutdown()
+      end)
+    end),
+  }, 100)
+  self.continueMenu:setVisibility(false)
+  self.uiRoot:addChild(self.continueMenu)
 end
 
 function Game1pStadium:update(dt)
@@ -136,7 +163,8 @@ function Game1pStadium:drawCard()
   GraphicsUtil.printf("VS", 0, PORTRAIT_TOP + PORTRAIT_HEIGHT / 2 - 30, width, "center", nil, nil, 30)
 end
 
--- A win names the stage that comes next; the last one leads to the recap, which says the rest.
+-- A win names the stage that comes next; the last one leads to the recap, which says the rest. A loss asks PPL's
+-- question, answered on the menu that follows.
 function Game1pStadium:customGameOverSetup()
   local winners = self.match:getWinners()
   if #winners == 1 and winners[1].human then
@@ -146,13 +174,41 @@ function Game1pStadium:customGameOverSetup()
     else
       self.text = loc("stadium_cleared", self.stadium.difficultyName)
     end
+  elseif #winners == 1 then
+    self.text = loc("stadium_continue_question")
+  end
+end
+
+function Game1pStadium:runGameOver()
+  if self.continueMenu.isVisible then
+    self.match:run()
+    -- the press that left the game over screen must not answer the question too
+    if not self.continueMenu.hasFocus and tableUtils.length(input.isDown) == 0 then
+      self.uiRoot:setFocus(self.continueMenu)
+    end
+  else
+    GameBase.runGameOver(self)
+  end
+end
+
+-- while the continue menu is up, its question stands over it instead of "press any button"
+function Game1pStadium:drawEndGameText()
+  if self.continueMenu.isVisible then
+    local width = consts.CANVAS_WIDTH
+    local centerY = consts.CANVAS_HEIGHT / 2
+    GraphicsUtil.drawRectangle("fill", width / 2 - 150, centerY - 110, 300, 200, 0, 0, 0, 0.8)
+    GraphicsUtil.printf(self.text, 0, centerY - 95, width, "center", nil, nil, 10)
+  else
+    GameBase.drawEndGameText(self)
   end
 end
 
 function Game1pStadium:startNextScene()
   -- match:deinit is the responsibility of the one switching out of the game scene
   local stadium = self.stadium
-  if stadium.complete then
+  if stadium.awaitingContinue then
+    self.continueMenu:setVisibility(true)
+  elseif stadium.complete then
     GAME.navigationStack:replace(StadiumRecapScene({stadium = stadium}), nil, function()
       self.match:deinit()
     end)

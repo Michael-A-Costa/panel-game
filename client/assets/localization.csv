@@ -712,3 +712,6 @@ stadium_title_elite,Stadium opponent title; %1 is the elite's number,Elite %1,É
 stadium_title_champion,Stadium opponent title,Champion,Champion,Campeão,チャンピオン,Campeón,Champion,Campione,แชมเปี้ยน
 stadium_title_boss,Stadium opponent title,Final Boss,Boss final,Chefe final,ラスボス,Jefe final,Endgegner,Boss finale,บอสสุดท้าย
 stadium_stage_beaten,Shown after winning a Stadium match; %1 is the beaten stage's title; %2 the next one's,%1 beaten! Next: %2,%1 vaincu ! Suivant : %2,%1 vencido! Próximo: %2,%1 撃破！ 次: %2,¡%1 superado! Siguiente: %2,%1 besiegt! Weiter: %2,%1 battuto! Prossimo: %2,ชนะ %1 แล้ว! ต่อไป: %2
+stadium_continue_question,Asked after losing a Stadium match,Continue?,Continuer ?,Continuar?,コンティニュー？,¿Continuar?,Weiter?,Continuare?,เล่นต่อไหม?
+stadium_continue_yes,Answer to the Stadium continue question,Yes,Oui,Sim,はい,Sí,Ja,Sì,ใช่
+stadium_continue_no,Answer to the Stadium continue question,No,Non,Não,いいえ,No,Nein,No,ไม่

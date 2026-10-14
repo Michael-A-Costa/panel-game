@@ -514,6 +514,17 @@ local shots = {
     end
   },
   {
+    -- the question after a loss, over the board it was lost on
+    name = "stadium_continue.png",
+    prepare = function()
+      local scene = createStadiumMatch(GameModes.IDs.ONE_PLAYER_STADIUM, 900)
+      scene.stadium:recordStageResult({scene.stadium.cpuPlayer}, 900)
+      scene.text = loc("stadium_continue_question")
+      scene:startNextScene()
+      return scene
+    end
+  },
+  {
     -- a first Hard clear, which opens Very Hard
     name = "stadium_recap.png",
     prepare = function()

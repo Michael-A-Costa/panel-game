@@ -79,6 +79,10 @@ local function ladderDataTest()
   expect(StadiumLadder.getDifficulty(4).unlockedBy, StadiumLadder.HARD, "Hard unlocks Very Hard")
   expect(StadiumLadder.getDifficulty(5).unlockedBy, StadiumLadder.VERY_HARD, "Very Hard unlocks Super Hard")
   expect(Stadium.getStageTitle(StadiumLadder.getDifficulty(2).stages[4]), "Gym 3", "titles fill in their number")
+  expect(StadiumLadder.getResumeStage(StadiumLadder.EASY, 0), 1, "a run without wins resumes at stage 1")
+  expect(StadiumLadder.getResumeStage(StadiumLadder.EASY, 10), 11, "a run resumes after its last win")
+  expect(StadiumLadder.getResumeStage(StadiumLadder.SUPER_HARD, 14), 15, "on the rival")
+  expect(StadiumLadder.getResumeStage(StadiumLadder.SUPER_HARD, 15), 15, "and never on the boss")
 end
 
 local function opponentCharacterTest()
@@ -172,7 +176,12 @@ local function stageFlowTest()
   expect(stadium.continues, 0, "for free")
 
   stadium:recordStageResult({cpu}, 300)
-  expect(stadium.stageIndex, 2, "a loss replays the stage")
+  assert(stadium.awaitingContinue, "a loss asks whether to continue")
+  expect(stadium.continues, 0, "which costs nothing until answered")
+  expect(progress.lastStageBeaten, 1, "a run left there resumes on the lost stage")
+  stadium:continueRun()
+  assert(not stadium.awaitingContinue, "answered")
+  expect(stadium.stageIndex, 2, "continuing replays the stage")
   expect(stadium.continues, 1, "for a continue")
   expect(progress.continues, 1, "which is saved")
 
@@ -230,7 +239,11 @@ local function bossAndUnlockTest()
   expect(cpu.name, characters[cpu.settings.characterId].display_name, "the name bar follows the character")
 
   stadium:recordStageResult({cpu}, 100)
-  expect(stadium.stageIndex, 15, "losing the boss goes back to the rival")
+  expect(stadium.stageIndex, 16, "the boss stays up until the player answers")
+  expect(saved:get("3d", veryHard).lastStageBeaten, 15, "a run left after losing the boss keeps the rival beaten")
+  expect(StadiumLadder.getResumeStage(veryHard, 15), 15, "but resumes on the rival")
+  stadium:continueRun()
+  expect(stadium.stageIndex, 15, "continuing after losing the boss goes back to the rival")
   expect(stadium.continues, 4, "for a continue")
   expect(cpu.settings.characterId, rivalCharacter, "the same rival")
   expect(saved:get("3d", veryHard).lastStageBeaten, 14, "the rival has to be beaten again")
@@ -337,11 +350,36 @@ local function scenesTest()
   human:setInputMethod(inputMethod)
 
   -- a win names the next stage
+  ---@diagnostic disable-next-line: duplicate-set-field
   match.getWinners = function()
     return {human}
   end
   game:customGameOverSetup()
   expect(game.text, loc("stadium_stage_beaten", "Gym 3", "Gym 4"), "the result line after a win")
+
+  -- a loss asks PPL's question; leaving the game over screen brings up its answers, which the press that left
+  -- must not pick as well
+  ---@diagnostic disable-next-line: duplicate-set-field
+  match.getWinners = function()
+    return {stadium.cpuPlayer}
+  end
+  game:customLoad()
+  game:customGameOverSetup()
+  expect(game.text, loc("stadium_continue_question"), "the question after a loss")
+  stadium:recordStageResult({stadium.cpuPlayer}, 0)
+  game:startNextScene()
+  assert(game.continueMenu.isVisible, "the continue menu comes up instead of leaving the scene")
+  expect(#game.continueMenu.menuItems, 2, "yes and no")
+  game:drawEndGameText()
+  -- the player here has no input device to run the match's frames with
+  ---@diagnostic disable-next-line: duplicate-set-field
+  match.run = function() end
+  input.isDown["MenuSelect"] = true
+  game:runGameOver()
+  input.isDown["MenuSelect"] = nil
+  assert(not game.continueMenu.hasFocus, "not while the leaving press is down")
+  game:runGameOver()
+  assert(game.continueMenu.hasFocus, "then the menu takes the input")
   match:deinit()
   stadium:shutdown()
   human:setCharacter(selectedCharacterId)
@@ -396,8 +434,12 @@ local function realMatchTest(gameModeId)
   if ended and #match:getWinners() == 1 and match:getWinners()[1] == human then
     expect(stadium.stageIndex, 15, "a win moves on")
   else
-    expect(stadium.continues, 1, "a loss costs a continue")
-    expect(stadium.stageIndex, 14, "and replays the stage")
+    if ended then
+      assert(stadium.awaitingContinue, "a loss asks whether to continue")
+      stadium:continueRun()
+    end
+    expect(stadium.continues, 1, "a continue")
+    expect(stadium.stageIndex, 14, "replays the stage")
   end
 
   match:deinit()

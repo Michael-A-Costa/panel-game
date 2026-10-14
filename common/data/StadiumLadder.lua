@@ -35,6 +35,10 @@ StadiumLadder.SUPER_HARD = 5
 -- (STADIUM-SPEC §6)
 local LEVEL_BY_DIFFICULTY = {1, 2, 4, 4, 4}
 
+-- PPL resumes a saved run at the stage after the last one beaten, but never past stage 15 (STADIUM-SPEC §3.1), so a
+-- run saved after the rival's rematch starts on the rival again: rival and boss are always beaten back to back
+local RESUME_STAGE_CAP = 15
+
 -- PPL unlocks the top two with button codes; here clearing the difficulty below does (PLAN "Decisions taken")
 local UNLOCKED_BY = {nil, nil, nil, StadiumLadder.HARD, StadiumLadder.VERY_HARD}
 
@@ -99,6 +103,15 @@ function StadiumLadder.getDifficulty(difficulty)
   local ladder = StadiumLadder.difficulties[difficulty]
   assert(ladder, "Stadium has difficulties 1 to " .. StadiumLadder.DIFFICULTY_COUNT .. ", got " .. tostring(difficulty))
   return ladder
+end
+
+-- The stage a resumed run starts on
+---@param difficulty integer
+---@param lastStageBeaten integer from the saved progress
+---@return integer
+function StadiumLadder.getResumeStage(difficulty, lastStageBeaten)
+  local stageCount = #StadiumLadder.getDifficulty(difficulty).stages
+  return math.min(lastStageBeaten + 1, stageCount, RESUME_STAGE_CAP)
 end
 
 return StadiumLadder
