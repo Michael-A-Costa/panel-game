@@ -11,6 +11,7 @@ local CPU_NAME = "PplCpu"
 
 ---@class StadiumOptions
 ---@field resume boolean? continue the difficulty's saved run instead of starting a new one
+---@field startStage integer? the stage a new run starts on, from PPL's stage select; 1 if nil
 ---@field progress StadiumProgress? where progress is read and saved; the player's own if nil
 
 -- A run up one difficulty of the 1P Stadium ladder (docs/cpu-ai/STADIUM-SPEC.md §3): the local player against the
@@ -68,6 +69,9 @@ function(self, mode, gameScene, difficulty, options)
     self.stadiumProgress:resetRun(self.dimension, difficulty)
     self.continues = 0
     self.expendedTime = 0
+    if options.startStage then
+      startStage = math.max(1, math.min(options.startStage, #self.ladder.stages))
+    end
   end
 
   self:addPlayer(GAME.localPlayer)

@@ -33,7 +33,8 @@ progression (see Log).
   shrinking topout grace), new rows without pairs plus PPL's helper pair by difficulty, story screens between stages,
   endings with credits, Very Hard and Super Hard unlocked by PPL's codes (shown at the Hard and Very Hard endings),
   "Continue?" after a loss, the boss and continued rematches started at once, resume never on the boss, best chain
-  and combo saved. Tested; nobody has played it yet.
+  and combo saved, PPL's stage select once a difficulty is cleared. Played through end to end by a CPU in the
+  player's seat (`testLauncher.lua StadiumPlaythrough`); Michael hasn't played it yet.
 - [x] **4. CPU tuning and polish**: 1P vs CPU on PplCpu, SimpleCpu removed, type check back to the 11 pre-existing
   diagnostics, CPU cost ~0.015 ms per frame, CPU-vs-CPU ladder check (BALANCE.md) with two raise fixes.
 
@@ -64,6 +65,9 @@ The Stadium rows in the decisions table below apply to the `stadium` branch.
 | Engine rules | No engine changes for Stadium in phases 1–3; PA's level presets as they are | 2D stays bit-identical; PA levels 1/2/4 already are PPL's VS rows (STADIUM-SPEC §6) |
 | PPL speed schedule, rise times, topout decay | On in Stadium (2D and 3D) through the `pplVersus` stack setup modification; every other mode keeps PA's pace | Michael asked for PPL's progression; a match rule like `cylinder`, so v3 replays carry it and old replays don't change |
 | PPL's helper pair per row (`newBlock`) | Copied behind `pplHelperPairs` (Easy every row, Normal/Hard every other, Very/Super Hard none); Stadium's level data denies generated pairs (`adjacentDenialFrequency` 1) as PPL's generator does. The pair's column is a hash of the row count instead of a panel RNG roll | The generator's random numbers stay the same in every mode |
+| 2P characters unlocked by Stadium progress (PPL: 8 to 14) | Not copied; Michael decided 2026-10-13 to keep every character open | Panel Attack has no character locks (characters are installed mods); a lock would hide characters players already have in every VS mode |
+| Topout grace over time | Exact: a topped-out stack loses whatever the grace shrinks by (`Stack:updateHealth`, `pplGrace`) | PPL compares its death counter with the current grace every frame |
+| Stage select (PPL's hidden `CHEAT.SBF`) | "Start at stage" on the Stadium menu once the difficulty is cleared | The decomp doesn't show how PPL reaches it; a clear is the closest earned gate |
 | Story screens | Text only, no art: PPL's intro, elite and boss intros on the pre-match card (which then waits for a press), the rival/wanderer/rogues scenes after stages 1, 9, 10 as the result line, the boss's win before "Continue?", the rival's return after it, an ending per difficulty and credits from Hard on | Licensing: no PPL characters, names or screens |
 | After a loss | PPL's "Continue?": yes costs a continue and replays the stage (the rival after losing the boss); no leaves the run saved on the lost stage, for free. Leaving a match from the pause menu still costs a continue and replays | STADIUM-SPEC §3.7; a pause-quit that cost nothing would dodge every loss |
 | Resume | Next stage after the last beaten, capped at 15 as PPL does | Rival and boss are always beaten back to back |
@@ -198,3 +202,9 @@ INTEGRATION.md §A4 recipe + STADIUM-SPEC §3 flow:
   sends through the pick), best chain and combo per difficulty on the menu. Tests: helper pairs 2D/3D in
   PplVersusTests, codes/bests in StadiumProgressTests, story/codes/direct starts in StadiumTests; shots
   `stadium_story.png`, `stadium_recap.png` (code). Suite green, type check at the 11 pre-existing diagnostics.
+- 2026-10-13: Exact shrinking grace (`Stack:updateHealth`, rollback field `pplGrace`), PPL's stage select after a
+  clear, and `client/tests/StadiumPlaythrough.lua` (optional, ~25 s): a Super Hard 16 CPU in the player's seat plays
+  Easy 2D (11 straight wins), Very Hard 3D (losses at 12 and 15, then the boss) and, as Super Hard 13, Super Hard 2D
+  (a 10-minute stall left from the pause menu, a boss loss back to the rival, two lost rival rematches, then rival and
+  boss back to back) through the room and ClientMatch; every step checked against PPL's rules. Michael chose to keep
+  all characters open instead of PPL's 2P character unlock.

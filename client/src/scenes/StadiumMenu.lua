@@ -14,6 +14,8 @@ local input = require("client.src.inputManager")
 ---@field stadiumProgress StadiumProgress
 ---@field difficultyStepper Stepper
 ---@field resumeItem MenuItem? present while the picked difficulty has a saved run
+---@field stageSelectItem MenuItem? PPL's stage select, present while the picked difficulty has been cleared
+---@field stageStepper Stepper? the stage select's stepper
 ---@field infoLabel Label what the picked difficulty needs to unlock or how often it was cleared
 ---@field codeKeys string[] the code buttons pressed since Raise1 went down
 local StadiumMenu = class(
@@ -65,7 +67,9 @@ function StadiumMenu:goToCharacterSelect(resume)
 
   GAME.theme:playValidationSfx()
   lastDifficulty = difficulty
-  GAME.battleRoom = Stadium.create(difficulty, self.gameModeId, {resume = resume, progress = self.stadiumProgress})
+  local startStage = self.stageStepper and self.stageStepper.value or nil
+  GAME.battleRoom = Stadium.create(difficulty, self.gameModeId,
+                                   {resume = resume, startStage = startStage, progress = self.stadiumProgress})
   if GAME.battleRoom then
     GAME.navigationStack:push(CharacterSelectStadium({battleRoom = GAME.battleRoom}))
   end
@@ -110,6 +114,11 @@ function StadiumMenu:refreshDifficulty()
     self.menu:removeMenuItem(self.resumeItem.id)
     self.resumeItem = nil
   end
+  if self.stageSelectItem then
+    self.menu:removeMenuItem(self.stageSelectItem.id)
+    self.stageSelectItem = nil
+    self.stageStepper = nil
+  end
 
   local difficulty = self.difficultyStepper.value
   local ladder = StadiumLadder.getDifficulty(difficulty)
@@ -134,6 +143,30 @@ function StadiumMenu:refreshDifficulty()
       self:goToCharacterSelect(true)
     end)
     self.menu:addMenuItem(2, self.resumeItem)
+  end
+
+  -- PPL's hidden stage select (CHEAT.SBF) lets a new game start on any stage of the difficulty; nothing in the decomp
+  -- says how it is reached, so here clearing the difficulty opens it
+  if self:isUnlocked(difficulty) and progress.clears > 0 then
+    local labels, values = {}, {}
+    for index = 1, #ladder.stages do
+      labels[index] = ui.Label({text = tostring(index), translate = false})
+      values[index] = index
+    end
+    self.stageStepper = ui.Stepper({
+      labels = labels,
+      values = values,
+      selectedIndex = 1,
+      width = 70,
+      height = 25,
+      onChange = function()
+        GAME.theme:playMoveSfx()
+      end
+    })
+    self.stageSelectItem = ui.MenuItem.createStepperMenuItem("stadium_stage_select", nil, nil, self.stageStepper)
+    -- right above "new game", which it applies to
+    local newGameIndex = self.resumeItem and 3 or 2
+    self.menu:addMenuItem(newGameIndex, self.stageSelectItem)
   end
 end
 

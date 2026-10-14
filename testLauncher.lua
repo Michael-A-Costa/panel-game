@@ -123,6 +123,7 @@ local allTests = {
 -- run only when asked for by name, e.g. benchmarks that measure rather than assert
 local optionalTests = {
   "common.tests.engine.PplCpuBenchmark",
+  "client.tests.StadiumPlaythrough",
 }
 
 -- Check for specific test name argument
