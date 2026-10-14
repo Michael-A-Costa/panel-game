@@ -98,6 +98,8 @@ local DIRECTION_ROW = {up = 1, down = -1, left = 0, right = 0}
 ---@field nextSpeedIncreaseClock integer? at which clock time the speed is going to increase the next time; only relevant if the levelData's speedIncreaseMode is 1
 ---@field panels_to_speedup integer? how many more panels have to be cleared for speed to increase on the next frame; only relevant if the levelData's speedIncreaseMode is 2
 ---@field pplVersus boolean if the stack keeps Pokémon Puzzle League's 2P VS pace (StackSetupModifications.pplVersus)
+---@field pplHelperPairs PplHelperPairs? how often a new row gets PPL's ready-made pair (StackSetupModifications)
+---@field newRowCount integer how many rows rose into the stack so far
 ---@field riseTimes number[] frames per displacement step by speed: consts.SPEED_TO_RISE_TIME, or PPL's own with pplVersus
 ---@field health integer Depletes by 1 every time the stack would try to passively raise while topped out \n
 --- Reaching 0 typically means game over (depends on the gameOverConditions)
@@ -183,6 +185,8 @@ local Stack = class(
     s.width = s.cylinder and consts.CYLINDER_WIDTH or 6
     s.pplVersus = args.stackSetupModifications.pplVersus == true
     s.riseTimes = s.pplVersus and consts.PPL_SPEED_TO_RISE_TIME or consts.SPEED_TO_RISE_TIME
+    s.pplHelperPairs = args.stackSetupModifications.pplHelperPairs
+    s.newRowCount = 0
     s.height = 12
 
     s.levelData = args.levelData
@@ -479,6 +483,7 @@ function Stack.transferStateVariables(destination, source)
   destination.top_cur_row = source.top_cur_row
   destination.displacement = source.displacement
   destination.nextSpeedIncreaseClock = source.nextSpeedIncreaseClock
+  destination.newRowCount = source.newRowCount
   destination.panels_to_speedup = source.panels_to_speedup
   destination.stop_time = source.stop_time
   destination.pre_stop_time = source.pre_stop_time
@@ -1600,6 +1605,11 @@ function Stack:new_row()
   local stackHeight = #panels + 1
   panels[stackHeight] = {}
   self.panelSource:createNewRow(self, stackHeight)
+  self.newRowCount = self.newRowCount + 1
+  if self.pplHelperPairs == "every" or (self.pplHelperPairs == "alternate" and self.newRowCount % 2 == 1) then
+    -- row 0 is still the row right above the new one; the switch below moves both down
+    self:addPplHelperPair(panels[stackHeight], panels[0])
+  end
 
   -- switching the new row downwards for each panel refreshes the properties on all panels to their new row
   for row = stackHeight, 1, -1 do
@@ -1619,6 +1629,38 @@ function Stack:new_row()
 
   self.displacement = 16
   self:emitSignal("newRow", self)
+end
+
+-- PPL's helper pair (Init2DNewRow, STADIUM-SPEC §2): a new row takes its right neighbour's color in one column, a
+-- ready-made pair for the player, unless the row brings shock panels. PPL rolls the column with the panel RNG; here
+-- it is a hash of the row count, so the panel generator's random numbers stay exactly what they are in every mode.
+-- Like PPL the pair never sits on a shock panel or on its own color, and it can't make three in a row.
+---@param newRow Panel[]
+---@param rowAbove Panel[]
+function Stack:addPplHelperPair(newRow, rowAbove)
+  local width = self.width
+  local colors = self.levelData.colors
+  for col = 1, width do
+    local color = newRow[col].color
+    if color < 1 or color > colors then
+      return
+    end
+  end
+
+  local start = (self.newRowCount * 2654435761) % 4294967296 % (width - 1)
+  for offset = 0, width - 2 do
+    local col = (start + offset) % (width - 1) + 1
+    local pairColor = newRow[col + 1].color
+    local left = col - 1
+    if left == 0 and self.cylinder then
+      left = width
+    end
+    if rowAbove[col].color ~= 8 and rowAbove[col + 1].color ~= 8 and rowAbove[col].color ~= pairColor
+        and (left == 0 or newRow[left].color ~= pairColor) then
+      newRow[col].color = pairColor
+      return
+    end
+  end
 end
 
 function Stack:getAttackPatternData()

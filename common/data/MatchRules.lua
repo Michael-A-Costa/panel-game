@@ -7,6 +7,11 @@
 ---@field cylinder boolean? if true the stack is Pokémon Puzzle League's 3D tower: an 18-column ring (docs/3d-mode/SPEC.md)
 ---@field pplVersus boolean? if true the stack keeps Pokémon Puzzle League's 2P VS pace: its speed schedule and rise
 --- times, and a topout grace that shrinks with match time (docs/cpu-ai/STADIUM-SPEC.md §2)
+---@field pplHelperPairs PplHelperPairs? how often a new row gets Pokémon Puzzle League's ready-made pair (STADIUM-SPEC §2)
+
+---@alias PplHelperPairs
+---| "every" # every new row, as PPL's Easy Stadium
+---| "alternate" # every other new row, the first one included, as PPL's Normal and Hard Stadium
 
 ---@class MatchRules
 ---@field doCountdown boolean

@@ -12,15 +12,21 @@ end
 
 ---@param gameModeId GameModeID
 ---@param level integer
+---@param helperPairs PplHelperPairs?
 ---@return Stack
-local function createStack(gameModeId, level)
+---@return Match
+local function createStack(gameModeId, level, helperPairs)
   local rules = GameModes.getPreset(gameModeId).matchRules
   rules.doCountdown = false
   rules.stackSetupModifications.behaviours = {passiveRaise = false, allowManualRaise = false}
+  rules.stackSetupModifications.pplHelperPairs = helperPairs
   local match = Match(GeneratorSource(1, false), rules)
-  local stack = match:createStackWithSettings(LevelPresets.getModern(level), false, "controller")
+  local levelData = LevelPresets.getModern(level)
+  -- as Stadium plays: no pairs from the generator itself
+  levelData.adjacentDenialFrequency = 1
+  local stack = match:createStackWithSettings(levelData, false, "controller")
   ---@cast stack Stack
-  return stack
+  return stack, match
 end
 
 -- runs the speed increases of the time interval mode up to a clock time
@@ -90,7 +96,45 @@ local function otherModesTest()
   expect(stack:getMaxHealth(), stack.levelData.maxHealth, "and a topout grace that doesn't shrink")
 end
 
+-- the new row's horizontal pairs, and whether one sits on its own color in the row above
+---@param stack Stack
+---@return integer pairCount
+---@return boolean stacked
+local function newRowPairs(stack)
+  local pairCount, stacked = 0, false
+  for col = 1, stack.width - 1 do
+    local color = stack.panels[0][col].color
+    if color == stack.panels[0][col + 1].color then
+      pairCount = pairCount + 1
+      stacked = stacked or stack.panels[1][col].color == color or stack.panels[1][col + 1].color == color
+    end
+  end
+  return pairCount, stacked
+end
+
+-- Easy brings a ready-made pair in every new row, Normal and Hard in every other one, starting with the first
+local function helperPairsTest()
+  local cases = {{"every", {1, 1, 1, 1, 1, 1}}, {"alternate", {1, 0, 1, 0, 1, 0}}, {false, {0, 0, 0, 0, 0, 0}}}
+  for _, case in ipairs(cases) do
+    for _, gameModeId in ipairs({GameModes.IDs.ONE_PLAYER_STADIUM, GameModes.IDs.ONE_PLAYER_STADIUM_3D}) do
+      local stack, match = createStack(gameModeId, 1, case[1] or nil)
+      match:start()
+      -- the starting board rises in through new rows as well
+      local startingRows = stack.newRowCount
+      for row, expected in ipairs(case[2]) do
+        stack:new_row()
+        local pairCount, stacked = newRowPairs(stack)
+        local name = tostring(case[1]) .. " " .. gameModeId .. " row " .. row
+        expect(pairCount, expected, name .. " pairs")
+        assert(not stacked, name .. ": a pair never sits on its own color")
+      end
+      expect(stack.newRowCount - startingRows, #case[2], "the stack counts its rows")
+    end
+  end
+end
+
 tablesTest()
+helperPairsTest()
 stadiumStackTest()
 topoutGraceTest()
 otherModesTest()
