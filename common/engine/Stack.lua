@@ -97,6 +97,8 @@ local DIRECTION_ROW = {up = 1, down = -1, left = 0, right = 0}
 ---@field speed integer Index for accessing the table for the rise_timer, thus indirectly determining how quickly the stack rises
 ---@field nextSpeedIncreaseClock integer? at which clock time the speed is going to increase the next time; only relevant if the levelData's speedIncreaseMode is 1
 ---@field panels_to_speedup integer? how many more panels have to be cleared for speed to increase on the next frame; only relevant if the levelData's speedIncreaseMode is 2
+---@field pplVersus boolean if the stack keeps Pokémon Puzzle League's 2P VS pace (StackSetupModifications.pplVersus)
+---@field riseTimes number[] frames per displacement step by speed: consts.SPEED_TO_RISE_TIME, or PPL's own with pplVersus
 ---@field health integer Depletes by 1 every time the stack would try to passively raise while topped out \n
 --- Reaching 0 typically means game over (depends on the gameOverConditions)
 ---@field garbageSizeDropColumnMaps integer[][] Which columns each size garbage is allowed to fall in; also defining the repeating sequence. \n
@@ -179,6 +181,8 @@ local Stack = class(
     assert(args.panelSource)
     s.cylinder = args.stackSetupModifications.cylinder == true
     s.width = s.cylinder and consts.CYLINDER_WIDTH or 6
+    s.pplVersus = args.stackSetupModifications.pplVersus == true
+    s.riseTimes = s.pplVersus and consts.PPL_SPEED_TO_RISE_TIME or consts.SPEED_TO_RISE_TIME
     s.height = 12
 
     s.levelData = args.levelData
@@ -201,7 +205,7 @@ local Stack = class(
     s.speed = s.levelData.startingSpeed
     if s.levelData.speedIncreaseMode == LevelData.SPEED_INCREASE_MODES.TIME_INTERVAL then
       -- mode 1: increase speed based on fixed intervals
-      s.nextSpeedIncreaseClock = DT_SPEED_INCREASE
+      s.nextSpeedIncreaseClock = s:getSpeedIncreaseInterval()
     else
       s.panels_to_speedup = PANELS_TO_NEXT_SPEED[s.speed]
     end
@@ -238,7 +242,7 @@ local Stack = class(
 
     s.displacement = 16
     s.wasToppedOut = false
-    s.rise_timer = consts.SPEED_TO_RISE_TIME[s.speed]
+    s.rise_timer = s.riseTimes[s.speed]
     s.rise_lock = false
     s.has_risen = false
 
@@ -917,7 +921,7 @@ function Stack:runPhysics()
 
   --prof.push("reset stuff")
   if not self.wasToppedOut and not self:hasFallingGarbage() then
-    self.health = self.levelData.maxHealth
+    self.health = self:getMaxHealth()
   end
 
   if self.displacement % 16 ~= 0 then
@@ -1165,6 +1169,41 @@ function Stack:getCylinderViewCenter()
   return self.cur_col + self.rotationDirection * progress
 end
 
+-- Frames until the next speed increase of the time interval mode: a flat 15 seconds, or PPL's schedule, which
+-- shortens from 15 to 5 seconds as the stack gains speed levels
+---@return integer
+function Stack:getSpeedIncreaseInterval()
+  if self.pplVersus then
+    local increases = self.speed - self.levelData.startingSpeed
+    return consts.PPL_SPEED_INCREASE_FRAMES[min(increases + 1, #consts.PPL_SPEED_INCREASE_FRAMES)]
+  else
+    return DT_SPEED_INCREASE
+  end
+end
+
+-- The health a stack refills to while not topped out. PPL's 2P VS shrinks it with match time: by 5% of the level's
+-- value per minute, halving it at 10 and 20 minutes, down to an eighth from 30 minutes on (STADIUM-SPEC §2 "Topout").
+-- PPL recomputes it every topped out frame; here a stack keeps the value it had when it topped out.
+---@return integer
+function Stack:getMaxHealth()
+  local maxHealth = self.levelData.maxHealth
+  if not self.pplVersus then
+    return maxHealth
+  end
+  local minutes = math.floor(self.clock / 3600)
+  local factor
+  if minutes < 10 then
+    factor = 1 - 0.05 * minutes
+  elseif minutes < 20 then
+    factor = (1 - 0.05 * (minutes - 10)) / 2
+  elseif minutes < 30 then
+    factor = (1 - 0.05 * (minutes - 20)) / 4
+  else
+    factor = 1 / 8
+  end
+  return math.max(1, math.floor(maxHealth * factor))
+end
+
 function Stack:updateSpeed()
   --prof.push("speed increase")
   -- Increase the speed if applicable
@@ -1172,7 +1211,7 @@ function Stack:updateSpeed()
     -- increase per interval
     if self.clock == self.nextSpeedIncreaseClock then
       self.speed = min(self.speed + 1, 99)
-      self.nextSpeedIncreaseClock = self.nextSpeedIncreaseClock + DT_SPEED_INCREASE
+      self.nextSpeedIncreaseClock = self.nextSpeedIncreaseClock + self:getSpeedIncreaseInterval()
     end
   elseif self.panels_to_speedup <= 0 then
     -- mode 2: increase speed based on cleared panels
@@ -1207,7 +1246,7 @@ function Stack:advancePassiveRaise()
             self.top_cur_row = self.height
             self:new_row()
           end
-          self.rise_timer = self.rise_timer + consts.SPEED_TO_RISE_TIME[self.speed]
+          self.rise_timer = self.rise_timer + self.riseTimes[self.speed]
         end
       end
       return true

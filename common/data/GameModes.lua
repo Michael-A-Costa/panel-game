@@ -205,7 +205,8 @@ local OnePlayerStadium = GameMode({
     matchWinRuleset = { { [MatchRules.MatchWinCriterias.GAME_OVER_CLOCK] = MatchRules.orders.HIGHEST} },
     stackOverConditions = { [MatchRules.StackOverConditions.HEALTH] = 0 },
     stackWinConditions = {},
-    stackSetupModifications = {},
+    -- PPL's own speed schedule, rise times and shrinking topout grace, as its Stadium plays
+    stackSetupModifications = { pplVersus = true },
     doCountdown = true,
   },
 

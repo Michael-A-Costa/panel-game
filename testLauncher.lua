@@ -82,6 +82,7 @@ local allTests = {
   "common.tests.engine.PplGarbageTests",
   "common.tests.engine.PplChainsTests",
   "common.tests.engine.PplLadderTests",
+  "common.tests.engine.PplVersusTests",
   -- disabled for testLauncher because it needs the client love callbacks
   --"common.tests.lib.InputTests",
   "common.tests.lib.JsonEncodingTests",

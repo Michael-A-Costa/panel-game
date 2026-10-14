@@ -71,6 +71,27 @@ consts.SPEED_TO_RISE_TIME = tableUtils.map(
      47,  47,  47,  47,  47,  47,  47,  47,  47},
      function(x) return x/16 end)
 
+-- Pokémon Puzzle League's 2P VS pace, played by stacks with the pplVersus setup modification
+-- (docs/cpu-ai/STADIUM-SPEC.md §2 "Speed during a match"); both tables verbatim from the decomp.
+-- st_RaiseTimer: its values are 16ths of a frame per row, so /256 gives frames per displacement step
+consts.PPL_SPEED_TO_RISE_TIME = tableUtils.map(
+  {15376, 14576, 12976, 12336, 11696, 10800, 10064, 9328, 8752, 7936,
+    7280,  6784,  5968,  5584,  5232,  4896,  4592, 4304, 4032, 3776,
+    3536,  3312,  3104,  2912,  2720,  2544,  2384, 2224, 2064, 1904,
+    1760,  1616,  1488,  1376,  1280,  1168,  1072, 1008,  928,  864,
+     800,   752,   688,   640,   592,   560,   528,  496,  464,  448,
+     432,   416,   400,   384,   368,   356,   344,  332,  320,  308,
+     296,   288,   280,   272,   264,   256,   248,  244,  240,  236,
+     232,   228,   224,   220,   216,   212,   208,  204,  200,  196,
+     192,   188,   184,   180,   176,   172,   168,  164,  160,  156,
+     152,   148,   144,   140,   136,   134,   132,  130,  128},
+     function(x) return x/256 end)
+
+-- st_AdvanceLevel: frames until the next speed increase, by speed levels gained so far (the last entry repeats)
+consts.PPL_SPEED_INCREASE_FRAMES = {
+  900, 900, 900, 900, 600, 600, 600, 600, 540, 540, 540, 540, 480, 480, 480, 480, 420, 420, 420, 420,
+  420, 420, 420, 420, 360, 360, 360, 360, 300, 300, 300, 300, 300, 300, 300, 300, 300, 300, 300, 300}
+
 -- Stage clear seems to use a variant of vs mode's speed system,
 -- except that the amount of time between increases is not constant.
 -- on stage 1, the increases occur at increments of:
