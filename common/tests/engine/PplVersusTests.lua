@@ -83,6 +83,24 @@ local function topoutGraceTest()
     stack.clock = case.minutes * 3600
     expect(stack:getMaxHealth(), case.health, "topout grace after " .. case.minutes .. " minutes")
   end
+
+  -- topped out across the 5 minute mark: the grace shrinks under the stack, as PPL compares every frame
+  stack.clock = 5 * 3600 - 1
+  stack.wasToppedOut = false
+  stack:updateHealth()
+  local before = stack.health
+  expect(before, math.floor(grace * 0.8), "refilled to the grace of minute 4")
+  stack.wasToppedOut = true
+  stack.health = before - 10
+  stack.clock = 5 * 3600
+  stack:updateHealth()
+  expect(stack.health, before - 10 - (before - math.floor(grace * 0.75)), "loses what the grace shrank by")
+  stack:updateHealth()
+  expect(stack.health, before - 10 - (before - math.floor(grace * 0.75)), "once")
+  stack.clock = 40 * 3600
+  stack.health = 1
+  stack:updateHealth()
+  expect(stack.health, 0, "and never below 0")
 end
 
 -- every other mode keeps Panel Attack's pace, so their games and replays stay as they were

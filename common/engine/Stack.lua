@@ -100,6 +100,8 @@ local DIRECTION_ROW = {up = 1, down = -1, left = 0, right = 0}
 ---@field pplVersus boolean if the stack keeps Pokémon Puzzle League's 2P VS pace (StackSetupModifications.pplVersus)
 ---@field pplHelperPairs PplHelperPairs? how often a new row gets PPL's ready-made pair (StackSetupModifications)
 ---@field newRowCount integer how many rows rose into the stack so far
+---@field pplGrace integer pplVersus only: the topout grace health was last measured against; when the grace shrinks
+--- while topped out, health loses the difference, as PPL compares its death counter with the current grace
 ---@field riseTimes number[] frames per displacement step by speed: consts.SPEED_TO_RISE_TIME, or PPL's own with pplVersus
 ---@field health integer Depletes by 1 every time the stack would try to passively raise while topped out \n
 --- Reaching 0 typically means game over (depends on the gameOverConditions)
@@ -215,6 +217,7 @@ local Stack = class(
     end
 
     s.health = s.levelData.maxHealth
+    s.pplGrace = s.health
 
     s.garbageSizeDropColumnMaps = {
       {1, 2, 3, 4, 5, 6},
@@ -517,6 +520,7 @@ function Stack.transferStateVariables(destination, source)
   destination.queuedSwapRow = source.queuedSwapRow
   destination.speed = source.speed
   destination.health = source.health
+  destination.pplGrace = source.pplGrace
   destination.swapCount = source.swapCount
   destination.panelsCreatedCount = source.panelsCreatedCount
 end
@@ -925,9 +929,7 @@ function Stack:runPhysics()
   --prof.pop("passive raise")
 
   --prof.push("reset stuff")
-  if not self.wasToppedOut and not self:hasFallingGarbage() then
-    self.health = self:getMaxHealth()
-  end
+  self:updateHealth()
 
   if self.displacement % 16 ~= 0 then
     self.top_cur_row = self.height - 1
@@ -1188,7 +1190,8 @@ end
 
 -- The health a stack refills to while not topped out. PPL's 2P VS shrinks it with match time: by 5% of the level's
 -- value per minute, halving it at 10 and 20 minutes, down to an eighth from 30 minutes on (STADIUM-SPEC §2 "Topout").
--- PPL recomputes it every topped out frame; here a stack keeps the value it had when it topped out.
+-- PPL compares its death counter with this value every frame, so a stack topped out across a minute loses the
+-- difference too (see pplGrace).
 ---@return integer
 function Stack:getMaxHealth()
   local maxHealth = self.levelData.maxHealth
@@ -1207,6 +1210,21 @@ function Stack:getMaxHealth()
     factor = 1 / 8
   end
   return math.max(1, math.floor(maxHealth * factor))
+end
+
+-- Refills health while the stack isn't topped out. With pplVersus a topped out stack also loses whatever its grace
+-- shrank by since it was last measured.
+function Stack:updateHealth()
+  if not self.wasToppedOut and not self:hasFallingGarbage() then
+    self.health = self:getMaxHealth()
+    self.pplGrace = self.health
+  elseif self.pplVersus then
+    local grace = self:getMaxHealth()
+    if grace < self.pplGrace then
+      self.health = math.max(0, self.health - (self.pplGrace - grace))
+      self.pplGrace = grace
+    end
+  end
 end
 
 function Stack:updateSpeed()
